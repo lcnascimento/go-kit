@@ -23,8 +23,9 @@ jobs:
           node-version: '20.8'
       - name: Install Plugins
         run: |
+          npm install -g lerna@5.5.2
           npm install -D semantic-release-monorepo @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
       - name: Run lerna with Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx lerna exec --concurrency 1 -- npx semantic-release
+        run: lerna exec --concurrency 1 -- npx semantic-release --tag-format='${LERNA_PACKAGE_NAME}/v\${version}'
