@@ -4,8 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lcnascimento/go-kit/lib/env"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lcnascimento/go-kit/env"
 )
 
 func TestGetString(t *testing.T) {

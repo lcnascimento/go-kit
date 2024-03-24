@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lcnascimento/go-kit/lib/propagation"
+	"github.com/lcnascimento/go-kit/propagation"
 )
 
 func TestContextKeySet(t *testing.T) {

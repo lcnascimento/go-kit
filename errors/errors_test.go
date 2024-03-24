@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lcnascimento/go-kit/lib/errors"
+	"github.com/lcnascimento/go-kit/errors"
 )
 
 func TestNew(t *testing.T) {

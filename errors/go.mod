@@ -1,4 +1,4 @@
-module github.com/lcnascimento/go-kit/lib/errors
+module github.com/lcnascimento/go-kit/errors
 
 go 1.22.1
 

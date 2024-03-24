@@ -7,13 +7,13 @@ Go Kit is a repository of utilitary packages written in Go, designed to improve 
 
 ## Internal structure
 
-This repository is designed as a Monorepo. Each folder inside './lib' represents an individual and independent package.
+This repository is designed as a Monorepo. Each folder represents an individual and independent package.
 
 Every package is automatically versioned using [Semantic Release](https://github.com/semantic-release/semantic-release) default rules. Every semantic commit pushed to `main` branch, that updates a package codebase, will generate a new release version for its package. If a commit does not touches the code base of a package, its version must not be increased. A single commit can increase version of multiple packages when it touches them all.
 
 ## How to use a package
 
-`go get github.com/lcnascimento/go-kit/lib/<package-name>`
+`go get github.com/lcnascimento/go-kit/<package-name>`
 
 ## How to predict next package versions locally
 
@@ -48,7 +48,7 @@ You can read more about this [here](https://github.com/angular/angular/blob/mast
 
 Notice that, if your changes increases the Major version of your package, you MUST update package's go.mod properly. For instance, if there is a BREAKING CHANGE to package `foo`, that increases its version to `2.0.0`, you MUST update `foo/go.mod` with:
 
-`module github.com/lcnascimento/go-kit/lib/foo` -> `module github.com/lcnascimento/go-kit/lib/foo/v2`
+`module github.com/lcnascimento/go-kit/foo` -> `module github.com/lcnascimento/go-kit/foo/v2`
 
 This need is required by Go design.
 
