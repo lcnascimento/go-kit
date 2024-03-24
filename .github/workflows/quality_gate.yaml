@@ -1,0 +1,52 @@
+name: Quality Gate Workflow
+
+on: workflow_call
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Fetch code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.work'
+
+    - name: Run linter
+      run: make lint
+
+  vuln-check:
+    name: Vuln Check
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Fetch code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.work'
+
+    - name: Run vulnerability checks
+      run: make vuln-check
+
+  unit_test:
+    name: Unit Test
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Fetch code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.work'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: make test.unit

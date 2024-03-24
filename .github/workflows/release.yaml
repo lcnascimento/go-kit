@@ -1,0 +1,30 @@
+name: Release Workflow
+
+on:
+  push:
+    branches: [main, beta]
+
+jobs:
+  quality_gate:
+    name: Quality Gate
+    uses: lcnascimento/go-kit/.github/workflows/quality_gate.yaml@main
+
+  versioning:
+    name: Define next release version
+    runs-on: ubuntu-20.04
+    needs:
+      - quality_gate
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '20.8'
+      - name: Install Plugins
+        run: |
+          npm install -D semantic-release-monorepo @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/github
+      - name: Run lerna with Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx lerna exec --concurrency 1 -- npx semantic-release

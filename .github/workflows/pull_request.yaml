@@ -1,0 +1,8 @@
+name: Pull Request Workflow
+
+on: pull_request
+
+jobs:
+  quality_gate:
+    name: Quality Gate
+    uses: lcnascimento/go-kit/.github/workflows/quality_gate.yaml@main

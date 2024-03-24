@@ -1,0 +1,122 @@
+run:
+  tests: true
+  timeout: 2m
+
+linters-settings:
+  lll:
+    line-length: 150
+
+  funlen:
+    ignore-comments: true
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+
+  misspell:
+    locale: US
+
+  gocyclo:
+    min-complexity: 10
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+
+  govet:
+    disable:
+      - fieldalignment
+
+  nakedret:
+    max-func-lines: 1
+
+  tagliatelle:
+    case:
+      rules:
+        json: snake
+        yaml: snake
+        xml: camel
+        bson: camel
+        avro: snake
+        mapstructure: kebab
+
+linters:
+  disable-all: true
+  fast: false
+  enable:
+    - asasalint
+    - bidichk
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - usestdlibvars
+    - staticcheck
+    - unused
+    - asciicheck
+    - bodyclose
+    - durationcheck
+    - errorlint
+    - exportloopref
+    - funlen
+    - gocritic
+    - godot
+    - godox
+    - gofmt
+    - gofumpt
+    - goheader
+    - goimports
+    - gomnd
+    - gomoddirectives
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - reassign
+    - promlinter
+    - stylecheck
+    - tagliatelle
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - wastedassign
+    - tenv
+    - testableexamples
+    - thelper
+    - tparallel
+    - gosec
+    - contextcheck
+    - errname
+    - execinquery
+    - loggercheck
+    - nakedret
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - lll
+        - errcheck
+        - forcetypeassert
+
+  include:
+    - EXC0012
+    - EXC0014
+
+output:
+  formats: "colored-line-number"
+  print-issued-lines: true
+  print-linter-name: true
