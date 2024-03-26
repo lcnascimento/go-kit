@@ -1,3 +1,4 @@
+[![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/)
 [![Release Workflow](https://github.com/lcnascimento/go-kit/actions/workflows/release.yaml/badge.svg?branch=main)](https://github.com/lcnascimento/go-kit/actions/workflows/release.yaml)
 
 # Go Kit

@@ -1,5 +1,15 @@
 GOPATH=$(shell go env GOPATH)
 
+.PHONY: setup
+setup: lint vuln-check
+	@echo "===> Installing Node dev dependencies"
+	@npm install
+
+	@echo "===> Installing husky"
+	@npx husky install
+
+	@echo "===> Setup concluded"
+
 .PHONY: lint
 lint:
 	@echo "===> Installing golangci-lint"
