@@ -12,6 +12,7 @@ import (
 	"github.com/lcnascimento/go-kit/propagation"
 )
 
+// Formatter defines how structures that formats logs should behavior.
 type Formatter interface {
 	// Format formats the log payload that will be rendered.
 	Format(context.Context, *format.LogInput) any

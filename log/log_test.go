@@ -451,7 +451,7 @@ func TestJSON(t *testing.T) {
 			expectedLog: `{"level":"DEBUG","message":"JSON data logged","payload":{"foo":"bar"},"timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 		{
-			desc:        "should log an error when data can not be JSON marshalled",
+			desc:        "should log an error when data can not be JSON marshaled",
 			ctx:         ctx,
 			sysLogLevel: "DEBUG",
 			data:        make(chan int),
