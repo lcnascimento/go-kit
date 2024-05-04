@@ -15,30 +15,6 @@ import (
 	"github.com/lcnascimento/go-kit/propagation"
 )
 
-func TestNewLogger(t *testing.T) {
-	t.Run("should use LogLevel INFO when not specified", func(t *testing.T) {
-		ctx := context.Background()
-
-		logger := log.NewLogger(log.LoggerInput{Now: mockNow})
-
-		t.Run("should not log Debug", func(t *testing.T) {
-			out := captureOutput(func() {
-				logger.Debug(ctx, "random message")
-			})
-
-			assert.Empty(t, out)
-		})
-
-		t.Run("should log Info", func(t *testing.T) {
-			out := captureOutput(func() {
-				logger.Info(ctx, "random message")
-			})
-
-			assert.Equal(t, `{"level":"INFO","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`, out)
-		})
-	})
-}
-
 func TestDebug(t *testing.T) {
 	ctx := context.Background()
 
@@ -46,7 +22,7 @@ func TestDebug(t *testing.T) {
 		desc        string
 		ctx         context.Context
 		level       string
-		attrs       propagation.ContextKeySet
+		contextKeys propagation.ContextKeySet
 		msg         string
 		msgArgs     []any
 		expectedLog string
@@ -95,22 +71,22 @@ func TestDebug(t *testing.T) {
 			expectedLog: `{"level":"DEBUG","message":"random message with dynamic data 1","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 		{
-			desc:        "should log with attributes",
-			ctx:         context.WithValue(ctx, propagation.ContextKey("attr1"), "value1"),
+			desc:        "should log with context keys",
+			ctx:         context.WithValue(ctx, propagation.ContextKey("key1"), "value1"),
 			level:       "DEBUG",
 			msg:         "random message",
-			attrs:       propagation.ContextKeySet{"attr1": true},
-			expectedLog: `{"attributes":{"attr1":"value1"},"level":"DEBUG","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
+			contextKeys: propagation.ContextKeySet{"key1": true},
+			expectedLog: `{"context":{"key1":"value1"},"level":"DEBUG","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.level,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
+			logger := log.NewLogger(
+				log.WithLevel(tc.level),
+				log.WithContextKeySet(tc.contextKeys),
+				log.WithTimmer(mockNow),
+			)
 
 			out := captureOutput(func() {
 				logger.Debug(tc.ctx, tc.msg, tc.msgArgs...)
@@ -128,7 +104,7 @@ func TestInfo(t *testing.T) {
 		desc        string
 		ctx         context.Context
 		level       string
-		attrs       propagation.ContextKeySet
+		contextKeys propagation.ContextKeySet
 		msg         string
 		msgArgs     []any
 		expectedLog string
@@ -177,22 +153,22 @@ func TestInfo(t *testing.T) {
 			expectedLog: `{"level":"INFO","message":"random message with dynamic data 1","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 		{
-			desc:        "should log with attributes",
-			ctx:         context.WithValue(ctx, propagation.ContextKey("attr1"), "value1"),
+			desc:        "should log with context keys",
+			ctx:         context.WithValue(ctx, propagation.ContextKey("key1"), "value1"),
 			level:       "DEBUG",
 			msg:         "random message",
-			attrs:       propagation.ContextKeySet{propagation.ContextKey("attr1"): true},
-			expectedLog: `{"attributes":{"attr1":"value1"},"level":"INFO","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
+			contextKeys: propagation.ContextKeySet{propagation.ContextKey("key1"): true},
+			expectedLog: `{"context":{"key1":"value1"},"level":"INFO","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.level,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
+			logger := log.NewLogger(
+				log.WithLevel(tc.level),
+				log.WithContextKeySet(tc.contextKeys),
+				log.WithTimmer(mockNow),
+			)
 
 			out := captureOutput(func() {
 				logger.Info(tc.ctx, tc.msg, tc.msgArgs...)
@@ -210,7 +186,7 @@ func TestWarning(t *testing.T) {
 		desc        string
 		ctx         context.Context
 		level       string
-		attrs       propagation.ContextKeySet
+		contextKeys propagation.ContextKeySet
 		msg         string
 		msgArgs     []any
 		expectedLog string
@@ -259,22 +235,22 @@ func TestWarning(t *testing.T) {
 			expectedLog: `{"level":"WARNING","message":"random message with dynamic data 1","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 		{
-			desc:        "should log with attributes",
-			ctx:         context.WithValue(ctx, propagation.ContextKey("attr1"), "value1"),
+			desc:        "should log with context keys",
+			ctx:         context.WithValue(ctx, propagation.ContextKey("key1"), "value1"),
 			level:       "DEBUG",
 			msg:         "random message",
-			attrs:       propagation.ContextKeySet{propagation.ContextKey("attr1"): true},
-			expectedLog: `{"attributes":{"attr1":"value1"},"level":"WARNING","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
+			contextKeys: propagation.ContextKeySet{propagation.ContextKey("key1"): true},
+			expectedLog: `{"context":{"key1":"value1"},"level":"WARNING","message":"random message","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.level,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
+			logger := log.NewLogger(
+				log.WithLevel(tc.level),
+				log.WithContextKeySet(tc.contextKeys),
+				log.WithTimmer(mockNow),
+			)
 
 			out := captureOutput(func() {
 				logger.Warning(tc.ctx, tc.msg, tc.msgArgs...)
@@ -292,7 +268,7 @@ func TestError(t *testing.T) {
 		desc        string
 		ctx         context.Context
 		level       string
-		attrs       propagation.ContextKeySet
+		contextKeys propagation.ContextKeySet
 		err         error
 		expectedLog string
 	}{
@@ -332,22 +308,22 @@ func TestError(t *testing.T) {
 			expectedLog: "",
 		},
 		{
-			desc:        "should log with attributes",
-			ctx:         context.WithValue(ctx, propagation.ContextKey("attr1"), "value1"),
+			desc:        "should log with context keys",
+			ctx:         context.WithValue(ctx, propagation.ContextKey("key1"), "value1"),
 			level:       "DEBUG",
 			err:         errors.New("random error"),
-			attrs:       propagation.ContextKeySet{propagation.ContextKey("attr1"): true},
-			expectedLog: `{"attributes":{"attr1":"value1","error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"random error"},"level":"ERROR","message":"random error","timestamp":"2020-12-01T12:00:00Z"}`,
+			contextKeys: propagation.ContextKeySet{propagation.ContextKey("key1"): true},
+			expectedLog: `{"attributes":{"error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"random error"},"context":{"key1":"value1"},"level":"ERROR","message":"random error","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.level,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
+			logger := log.NewLogger(
+				log.WithLevel(tc.level),
+				log.WithContextKeySet(tc.contextKeys),
+				log.WithTimmer(mockNow),
+			)
 
 			out := captureOutput(func() {
 				logger.Error(tc.ctx, tc.err)
@@ -365,7 +341,7 @@ func TestCritical(t *testing.T) {
 		desc        string
 		ctx         context.Context
 		level       string
-		attrs       propagation.ContextKeySet
+		contextKeys propagation.ContextKeySet
 		err         error
 		expectedLog string
 	}{
@@ -405,77 +381,25 @@ func TestCritical(t *testing.T) {
 			expectedLog: `{"attributes":{"error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"random error"},"level":"CRITICAL","message":"random error","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 		{
-			desc:        "should log with attributes",
-			ctx:         context.WithValue(ctx, propagation.ContextKey("attr1"), "value1"),
+			desc:        "should log with context keys",
+			ctx:         context.WithValue(ctx, propagation.ContextKey("key1"), "value1"),
 			level:       "DEBUG",
 			err:         errors.New("random error"),
-			attrs:       propagation.ContextKeySet{propagation.ContextKey("attr1"): true},
-			expectedLog: `{"attributes":{"attr1":"value1","error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"random error"},"level":"CRITICAL","message":"random error","timestamp":"2020-12-01T12:00:00Z"}`,
+			contextKeys: propagation.ContextKeySet{propagation.ContextKey("key1"): true},
+			expectedLog: `{"attributes":{"error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"random error"},"context":{"key1":"value1"},"level":"CRITICAL","message":"random error","timestamp":"2020-12-01T12:00:00Z"}`,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.level,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
+			logger := log.NewLogger(
+				log.WithLevel(tc.level),
+				log.WithContextKeySet(tc.contextKeys),
+				log.WithTimmer(mockNow),
+			)
 
 			out := captureOutput(func() {
 				logger.Critical(tc.ctx, tc.err)
-			})
-
-			assert.Equal(t, tc.expectedLog, out)
-		})
-	}
-}
-
-func TestJSON(t *testing.T) {
-	ctx := context.Background()
-
-	tt := []struct {
-		desc        string
-		ctx         context.Context
-		sysLogLevel string
-		level       []log.Level
-		attrs       propagation.ContextKeySet
-		data        any
-		expectedLog string
-	}{
-		{
-			desc:        "should log when system LogLevel is DEBUG",
-			ctx:         ctx,
-			sysLogLevel: "DEBUG",
-			data:        map[string]string{"foo": "bar"},
-			expectedLog: `{"level":"DEBUG","message":"JSON data logged","payload":{"foo":"bar"},"timestamp":"2020-12-01T12:00:00Z"}`,
-		},
-		{
-			desc:        "should log an error when data can not be JSON marshaled",
-			ctx:         ctx,
-			sysLogLevel: "DEBUG",
-			data:        make(chan int),
-			expectedLog: `{"attributes":{"error.code":"UNKNOWN","error.kind":"UNEXPECTED","error.retryable":"false","error.root":"json: unsupported type: chan int"},"level":"ERROR","message":"could not marshal payload to JSON format","timestamp":"2020-12-01T12:00:00Z"}`,
-		},
-		{
-			desc:        "should not log anything when system LogLevel is INFO",
-			ctx:         ctx,
-			sysLogLevel: "INFO",
-			data:        map[string]string{"foo": "bar"},
-			expectedLog: "",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.desc, func(t *testing.T) {
-			logger := log.NewLogger(log.LoggerInput{
-				Level:      tc.sysLogLevel,
-				Attributes: tc.attrs,
-				Now:        mockNow,
-			})
-
-			out := captureOutput(func() {
-				logger.JSON(tc.ctx, tc.data)
 			})
 
 			assert.Equal(t, tc.expectedLog, out)

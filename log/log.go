@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/lcnascimento/go-kit/errors"
@@ -18,31 +19,22 @@ type Formatter interface {
 	Format(context.Context, *format.LogInput) any
 }
 
-// LoggerInput defines the dependencies of a Logger.
-type LoggerInput struct {
-	Level      string
-	Formatter  Formatter
-	Attributes propagation.ContextKeySet
-
-	// This should only be given for testing!
-	Now func() time.Time
-}
-
 // Logger is the structure responsible for log data.
 type Logger struct {
-	level      Level
-	formatter  Formatter
-	attributes propagation.ContextKeySet
-	now        func() time.Time
+	level       Level
+	formatter   Formatter
+	contextKeys propagation.ContextKeySet
+	now         func() time.Time
 }
 
 // NewLogger constructs a new Logger instance.
-func NewLogger(input LoggerInput) *Logger {
+func NewLogger(opts ...Option) *Logger {
 	logger := &Logger{
-		level:      levelStringValueMap[input.Level],
-		attributes: input.Attributes,
-		formatter:  input.Formatter,
-		now:        time.Now,
+		now: time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(logger)
 	}
 
 	if logger.level < LevelCritical || logger.level > LevelDebug {
@@ -53,104 +45,90 @@ func NewLogger(input LoggerInput) *Logger {
 		logger.formatter = format.NewDefault()
 	}
 
-	if input.Now != nil {
-		logger.now = input.Now
+	if logger.contextKeys == nil {
+		logger.contextKeys = propagation.ContextKeySet{}
 	}
 
 	return logger
 }
 
 // Debug logs debug data.
-func (l Logger) Debug(ctx context.Context, msg string, args ...interface{}) {
+func (l Logger) Debug(ctx context.Context, msg string, args ...any) {
 	if l.level >= LevelDebug {
-		l.printMsg(ctx, fmt.Sprintf(msg, args...), LevelDebug)
+		l.print(ctx, LevelDebug, msg, args...)
 	}
 }
 
 // Info logs info data.
-func (l Logger) Info(ctx context.Context, msg string, args ...interface{}) {
+func (l Logger) Info(ctx context.Context, msg string, args ...any) {
 	if l.level >= LevelInfo {
-		l.printMsg(ctx, fmt.Sprintf(msg, args...), LevelInfo)
+		l.print(ctx, LevelInfo, msg, args...)
 	}
 }
 
 // Warning logs warning data.
-func (l Logger) Warning(ctx context.Context, msg string, args ...interface{}) {
+func (l Logger) Warning(ctx context.Context, msg string, args ...any) {
 	if l.level >= LevelWarning {
-		l.printMsg(ctx, fmt.Sprintf(msg, args...), LevelWarning)
+		l.print(ctx, LevelWarning, msg, args...)
 	}
 }
 
 // Error logs error data.
-func (l Logger) Error(ctx context.Context, err error) {
+func (l Logger) Error(ctx context.Context, err error, args ...any) {
 	if l.level >= LevelError {
-		l.printError(ctx, err, LevelError)
+		l.printError(ctx, LevelError, err, args...)
 	}
 }
 
 // Critical logs critical data.
-func (l Logger) Critical(ctx context.Context, err error) {
+func (l Logger) Critical(ctx context.Context, err error, args ...any) {
 	if l.level >= LevelCritical {
-		l.printError(ctx, err, LevelCritical)
+		l.printError(ctx, LevelCritical, err, args...)
 	}
 }
 
 // Fatal logs critical data and exists current program execution.
-func (l Logger) Fatal(ctx context.Context, err error) {
+func (l Logger) Fatal(ctx context.Context, err error, args ...any) {
 	if l.level >= LevelCritical {
-		l.printError(ctx, err, LevelCritical)
+		l.printError(ctx, LevelCritical, err, args...)
 		os.Exit(1)
 	}
 }
 
-// JSON logs JSON data in Debug level.
-func (l Logger) JSON(ctx context.Context, data any) {
-	if l.level < LevelDebug {
-		return
+func (l Logger) print(ctx context.Context, level Level, msg string, args ...any) {
+	msg, attrs := buildMsgAndAttributes(msg, args...)
+
+	payload := l.formatter.Format(ctx, &format.LogInput{
+		Level:       level.String(),
+		Message:     msg,
+		ContextKeys: l.contextKeys,
+		Attributes:  attrs,
+		Timestamp:   l.now(),
+	})
+
+	data, _ := json.Marshal(payload)
+	fmt.Println(string(data))
+}
+
+func (l Logger) printError(ctx context.Context, level Level, err error, args ...any) {
+	msg, attrs := buildMsgAndAttributes(err.Error(), args...)
+
+	attrs["error.root"] = errors.RootError(err)
+	attrs["error.kind"] = string(errors.Kind(err))
+	attrs["error.code"] = string(errors.Code(err))
+	attrs["error.retryable"] = strconv.FormatBool(errors.Retryable(err))
+
+	l.print(ctx, level, msg, attrs)
+}
+
+func buildMsgAndAttributes(msg string, args ...any) (string, format.AttributeSet) {
+	if len(args) == 0 {
+		return msg, format.AttributeSet{}
 	}
 
-	if _, err := json.Marshal(data); err != nil {
-		l.Error(ctx, errors.New("could not marshal payload to JSON format").WithRootError(err))
-		return
+	if attrs, ok := args[0].(format.AttributeSet); ok {
+		return msg, attrs
 	}
 
-	l.printJSON(ctx, data)
-}
-
-func (l Logger) printMsg(ctx context.Context, msg string, level Level) {
-	payload := l.formatter.Format(ctx, &format.LogInput{
-		Level:      level.String(),
-		Message:    msg,
-		Attributes: l.attributes,
-		Timestamp:  l.now(),
-	})
-
-	data, _ := json.Marshal(payload)
-	fmt.Println(string(data))
-}
-
-func (l Logger) printJSON(ctx context.Context, jsonData any) {
-	payload := l.formatter.Format(ctx, &format.LogInput{
-		Level:      LevelDebug.String(),
-		Message:    "JSON data logged",
-		Payload:    jsonData,
-		Attributes: l.attributes,
-		Timestamp:  l.now(),
-	})
-
-	data, _ := json.Marshal(payload)
-	fmt.Println(string(data))
-}
-
-func (l Logger) printError(ctx context.Context, err error, level Level) {
-	payload := l.formatter.Format(ctx, &format.LogInput{
-		Level:      level.String(),
-		Message:    err.Error(),
-		Err:        err,
-		Attributes: l.attributes,
-		Timestamp:  l.now(),
-	})
-
-	data, _ := json.Marshal(payload)
-	fmt.Println(string(data))
+	return fmt.Sprintf(msg, args...), format.AttributeSet{}
 }

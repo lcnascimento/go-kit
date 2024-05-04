@@ -3,7 +3,6 @@ package format
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/codes"
@@ -69,13 +68,16 @@ func (b gcpCloudLoggingLogFormatter) Format(ctx context.Context, in LogInput) an
 		payload["payload"] = in.Payload
 	}
 
-	attrs := extractContextKeysFromContext(ctx, in.Attributes)
-	if in.Err != nil {
-		attrs[errors.ContextKeyRootError] = errors.RootError(in.Err)
-		attrs[errors.ContextKeyErrorKind] = string(errors.Kind(in.Err))
-		attrs[errors.ContextKeyErrorCode] = string(errors.Code(in.Err))
-		attrs[errors.ContextKeyErrorRetryable] = strconv.FormatBool(errors.Retryable(in.Err))
+	contextKeys := extractContextKeysFromContext(ctx, in.ContextKeys)
+	if len(contextKeys) > 0 {
+		payload["context"] = contextKeys
+	}
 
+	if len(in.Attributes) > 0 {
+		payload["attributes"] = in.Attributes
+	}
+
+	if isError(in.Level) {
 		// Necessary to link error to Cloud Error Reporting.
 		// More details in: https://cloud.google.com/error-reporting/docs/formatting-error-messages
 		payload["@type"] = "type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent"
@@ -84,19 +86,14 @@ func (b gcpCloudLoggingLogFormatter) Format(ctx context.Context, in LogInput) an
 			"version": b.applicationVersion,
 		}
 	}
-	if len(attrs) > 0 {
-		payload["logging.googleapis.com/labels"] = attrs
-	}
 
 	span := trace.SpanFromContext(ctx)
 	if !span.SpanContext().TraceID().IsValid() {
 		return payload
 	}
 
-	span.AddEvent("log", trace.WithAttributes(buildOtelAttributes(attrs, "log")...))
-	if in.Err != nil {
-		span.RecordError(in.Err, trace.WithAttributes(buildOtelAttributes(attrs, "exception")...))
-		span.SetStatus(codes.Error, in.Err.Error())
+	if isError(in.Level) {
+		span.SetStatus(codes.Error, in.Message)
 	}
 
 	// Necessary to link with Cloud Trace
