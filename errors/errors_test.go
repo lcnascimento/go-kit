@@ -2,11 +2,13 @@ package errors_test
 
 import (
 	e "errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lcnascimento/go-kit/errors"
+	"github.com/lcnascimento/go-kit/runtime"
 )
 
 func TestNew(t *testing.T) {
@@ -267,12 +269,57 @@ func TestRetryable(t *testing.T) {
 	}
 }
 
+func TestStack(t *testing.T) {
+	withStack := errors.New("some message").WithStack()
+
+	tt := []struct {
+		name     string
+		err      error
+		expected []runtime.StackFrame
+	}{
+		{
+			name:     "go native error",
+			err:      e.New("new error"),
+			expected: nil,
+		},
+		{
+			name:     "custom error without stack",
+			err:      errors.New("some message"),
+			expected: nil,
+		},
+		{
+			name:     "custom error with stack",
+			err:      withStack,
+			expected: errors.Stack(withStack),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, errors.Stack(tc.err))
+		})
+	}
+}
+
 func TestIs(t *testing.T) {
-	t.Run("should see different errors", func(t *testing.T) {
+	t.Run("should see different custom errors", func(t *testing.T) {
 		assert.False(t, errors.Is(errors.ErrNotImplemented, errors.ErrResourceNotFound))
 	})
 
-	t.Run("should see equal errors", func(t *testing.T) {
+	t.Run("should see equal custom errors", func(t *testing.T) {
 		assert.True(t, errors.Is(errors.ErrNotImplemented, errors.ErrNotImplemented))
+	})
+
+	t.Run("should see different native errors", func(t *testing.T) {
+		err1 := fmt.Errorf("fake error 1")
+		err2 := fmt.Errorf("fake error 2")
+
+		assert.False(t, errors.Is(err1, err2))
+	})
+
+	t.Run("should see equal native errors", func(t *testing.T) {
+		err := fmt.Errorf("fake error")
+
+		assert.True(t, errors.Is(err, err))
 	})
 }

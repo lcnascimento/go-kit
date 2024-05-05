@@ -1,2 +1,12 @@
+github.com/lcnascimento/go-kit/env v1.0.0 h1:d6PGrhgh5me6VQpZO4+Hp2NhPn9g/Q3gfUZe5NvUGek=
+github.com/lcnascimento/go-kit/env v1.0.0/go.mod h1:qtZw5G2dkPGs1mIOOPDgBiJ7XkQcpnbE9bxL23gfBcc=
+github.com/lcnascimento/go-kit/propagation v1.0.0 h1:XwPetKzIeLne/DRhH9V7T7dQS5gHAWC8tKb2lgWWM90=
+github.com/lcnascimento/go-kit/propagation v1.0.0/go.mod h1:CBdRZpGMi+euPp5a9sJ2y1KkuKhmavsfnKBMYuLqXUM=
+github.com/lcnascimento/go-kit/runtime v1.0.0 h1:iWqpjJGDyd/3WZJF7B3nmwAEJbO6GjvX/HvXnrgaXU8=
+github.com/lcnascimento/go-kit/runtime v1.0.0/go.mod h1:pauL3o8GJ4d/tndiSnuxgxvcw7PlyNDQBlcFNV2t9lo=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+go.opentelemetry.io/otel v1.26.0 h1:LQwgL5s/1W7YiiRwxf03QGnWLb2HW4pLiAhaA5cZXBs=
+go.opentelemetry.io/otel v1.26.0/go.mod h1:UmLkJHUAidDval2EICqBMbnAd0/m2vmpf/dAM+fvFs4=
+go.opentelemetry.io/otel/trace v1.26.0 h1:1ieeAUb4y0TE26jUFrCIXKpTuVK7uJGN9/Z/2LP5sQA=
+go.opentelemetry.io/otel/trace v1.26.0/go.mod h1:4iDxvGDQuUkHve82hJJ8UqrwswHYsZuWCBllGV2U2y0=

@@ -1,8 +1,11 @@
+//nolint:gocritic // not using pointer parameter on CustomError methods intentionally.
 package errors
 
 import (
 	e "errors"
 	"fmt"
+
+	"github.com/lcnascimento/go-kit/runtime"
 )
 
 // CodeType is a string that contains error's code description.
@@ -22,6 +25,7 @@ type CustomError struct {
 	rootErr   error
 	message   string
 	retryable bool
+	stack     []runtime.StackFrame
 }
 
 const (
@@ -69,6 +73,7 @@ func NewMissingRequiredDependency(name string) error {
 	return New("Missing required dependency: %s", name).
 		WithKind(KindInvalidInput).
 		WithCode("MISSING_REQUIRED_DEPENDENCY").
+		WithStack().
 		Retryable(false)
 }
 
@@ -77,6 +82,7 @@ func NewValidationError(desc string) error {
 	return New(desc).
 		WithKind(KindInvalidInput).
 		WithCode("VALIDATION_ERROR").
+		WithStack().
 		Retryable(false)
 }
 
@@ -97,6 +103,13 @@ func (ce CustomError) WithCode(code CodeType) CustomError {
 // WithRootError returns a copy of the CustomError with the RootError filled.
 func (ce CustomError) WithRootError(err error) CustomError {
 	ce.rootErr = err
+
+	return ce
+}
+
+// WithStack returns a copy of the CustomError tagged as retryable or not.
+func (ce CustomError) WithStack() CustomError {
+	ce.stack = runtime.Stack()
 
 	return ce
 }
@@ -169,7 +182,29 @@ func Retryable(err error) bool {
 	return false
 }
 
+// Stack this method receives an error, then compares its interface type with the CustomError interface.
+// If the interfaces types matches, returns its Stack Trace.
+func Stack(err error) []runtime.StackFrame {
+	var customError CustomError
+	if e.As(err, &customError) {
+		return customError.stack
+	}
+
+	return nil
+}
+
 // Is reports whether any error in err's tree matches target.
 func Is(err, target error) bool {
+	var sce, tce CustomError
+	if e.As(err, &sce) && e.As(target, &tce) {
+		eMessage := sce.message == tce.message
+		eCode := sce.code == tce.code
+		eKind := sce.kind == tce.kind
+		eRetryable := sce.retryable == tce.retryable
+		eRoot := e.Is(sce.rootErr, tce.rootErr)
+
+		return eMessage && eCode && eKind && eRoot && eRetryable
+	}
+
 	return e.Is(err, target)
 }
