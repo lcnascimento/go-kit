@@ -7,4 +7,5 @@ use (
 	./propagation
 	./runtime
 	./httpclient
+	./trace
 )
