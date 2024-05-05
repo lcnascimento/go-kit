@@ -11,6 +11,7 @@ import (
 	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/log/format"
 	"github.com/lcnascimento/go-kit/propagation"
+	"github.com/lcnascimento/go-kit/runtime"
 )
 
 // Formatter defines how structures that formats logs should behavior.
@@ -118,6 +119,11 @@ func (l Logger) printError(ctx context.Context, level Level, err error, args ...
 	attrs["error.code"] = string(errors.Code(err))
 	attrs["error.retryable"] = strconv.FormatBool(errors.Retryable(err))
 
+	stack := errors.Stack(err)
+	if len(stack) > 0 {
+		attrs["error.stack"] = stackList(stack)
+	}
+
 	l.print(ctx, level, msg, attrs)
 }
 
@@ -131,4 +137,14 @@ func buildMsgAndAttributes(msg string, args ...any) (string, format.AttributeSet
 	}
 
 	return fmt.Sprintf(msg, args...), format.AttributeSet{}
+}
+
+func stackList(stack []runtime.StackFrame) []string {
+	list := []string{}
+
+	for _, s := range stack {
+		list = append(list, fmt.Sprintf("%s:%d (%s)", s.File, s.LineNumber, s.Name))
+	}
+
+	return list
 }
