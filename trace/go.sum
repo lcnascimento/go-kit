@@ -13,6 +13,12 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 h1:/c3QmbOGMGTOumP2iT/rCwB7b0Q
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1/go.mod h1:5SN9VR2LTsRFsrEC6FHgRbTWrTHu6tqPeKxEQv15giM=
 github.com/lcnascimento/go-kit/env v1.0.0 h1:d6PGrhgh5me6VQpZO4+Hp2NhPn9g/Q3gfUZe5NvUGek=
 github.com/lcnascimento/go-kit/env v1.0.0/go.mod h1:qtZw5G2dkPGs1mIOOPDgBiJ7XkQcpnbE9bxL23gfBcc=
+github.com/lcnascimento/go-kit/errors v1.2.0 h1:eziBd5CnPPNdaadoJyBMzBowBDsfvOqowDUsWcUBCrI=
+github.com/lcnascimento/go-kit/errors v1.2.0/go.mod h1:dB0DcftZTuUNnk6V7/RDgTPN6Br4LVP4eSGjVQYqrHI=
+github.com/lcnascimento/go-kit/propagation v1.0.0 h1:XwPetKzIeLne/DRhH9V7T7dQS5gHAWC8tKb2lgWWM90=
+github.com/lcnascimento/go-kit/propagation v1.0.0/go.mod h1:CBdRZpGMi+euPp5a9sJ2y1KkuKhmavsfnKBMYuLqXUM=
+github.com/lcnascimento/go-kit/runtime v1.0.0 h1:iWqpjJGDyd/3WZJF7B3nmwAEJbO6GjvX/HvXnrgaXU8=
+github.com/lcnascimento/go-kit/runtime v1.0.0/go.mod h1:pauL3o8GJ4d/tndiSnuxgxvcw7PlyNDQBlcFNV2t9lo=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
