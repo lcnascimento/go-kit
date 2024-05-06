@@ -19,7 +19,7 @@ const (
 	otlpDefaultReconnectPeriod   = 2
 	otlpDefaultTimeout           = 30
 	otlpDefaultBackoffBaseDelay  = 1
-	otlpDefaultBackoffMaxDelay   = 1
+	otlpDefaultBackoffMaxDelay   = 15
 	otlpDefaultBackoffMultiplier = 1.6
 )
 
