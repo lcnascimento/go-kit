@@ -1,7 +1,8 @@
 package trace
 
-// Exporter indicates an available Span Exporter that is supported by this package.
-type Exporter string
+import "go.opentelemetry.io/otel/trace"
 
-// ExporterOTLP is the OTLP exporter.
-const ExporterOTLP Exporter = "OTLP"
+// Tracer is a wrapper around OTEL Tracer.
+type Tracer interface {
+	trace.Tracer
+}

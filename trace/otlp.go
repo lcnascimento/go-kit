@@ -23,7 +23,7 @@ const (
 	otlpDefaultBackoffMultiplier = 1.6
 )
 
-func getOTLPExporter(ctx context.Context) (trace.SpanExporter, error) {
+func getOTLPExporter() (trace.SpanExporter, error) {
 	endpoint := env.GetString("OTEL_OTLP_ENDPOINT", otlpDefaultEndpoint)
 	reconnectPeriod := env.GetInt("OTEL_OTLP_RECONNECT_PERIOD_IN_SECONDS", otlpDefaultReconnectPeriod)
 	timeout := env.GetInt("OTEL_OTLP_TIMEOUT_IN_SECONDS", otlpDefaultTimeout)
@@ -51,6 +51,7 @@ func getOTLPExporter(ctx context.Context) (trace.SpanExporter, error) {
 		),
 	}
 
+	ctx := context.Background()
 	exporter, err := otlptrace.New(ctx, otlptracegrpc.NewClient(clientOpts...))
 	if err != nil {
 		return nil, err
