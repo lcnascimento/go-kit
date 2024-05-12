@@ -2,35 +2,62 @@ package main
 
 import (
 	"context"
+	e "errors"
+
+	"go.opentelemetry.io/otel"
 
 	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/log"
-	"github.com/lcnascimento/go-kit/log/format"
 	"github.com/lcnascimento/go-kit/propagation"
+	"github.com/lcnascimento/go-kit/trace"
 )
 
-func main() {
-	ctx := context.Background()
+var tracer trace.Tracer
 
-	contextKeys := propagation.ContextKeySet{
-		propagation.ContextKey("foo"): true,
-	}
-
-	logger := log.NewLogger(
-		log.WithLevel("DEBUG"),
-		log.WithContextKeySet(contextKeys),
-	)
-
-	ctx = context.WithValue(ctx, propagation.ContextKey("foo"), "bar")
-
-	attrs := format.AttributeSet{
-		"attr1": "value1",
-		"attr2": "value2",
-	}
-
-	logger.Debug(ctx, "debug message", attrs)
-	logger.Info(ctx, "info message", attrs)
-	logger.Warning(ctx, "warning message", attrs)
-	logger.Error(ctx, errors.New("error message").WithStack(), attrs)
-	logger.Critical(ctx, errors.New("critical message").WithStack(), attrs)
+func init() {
+	tracer = otel.Tracer("example")
 }
+
+func main() {
+	foo := propagation.ContextKey("foo")
+	bar := propagation.ContextKey("bar")
+
+	log.SetLevel(log.LevelDebug)
+	log.SetContextKeySet(propagation.ContextKeySet{
+		foo: true,
+		bar: true,
+	})
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, foo, "foo")
+	ctx = context.WithValue(ctx, bar, "bar")
+
+	ctx, span := tracer.Start(ctx, "main")
+	defer span.End()
+
+	attr1 := log.String("attr1", "value1")
+	attr2 := log.String("attr2", "value2")
+
+	log.Debug(ctx, "Debug", attr1, attr2)
+	log.Info(ctx, "Info", attr1, attr2)
+	log.Warn(ctx, "Warn", attr1, attr2)
+	log.Errorw(ctx, "Error", attr1, attr2)
+	log.Criticalw(ctx, "Critical", attr1, attr2)
+
+	log.Error(ctx, errDefault, attr1, attr2)
+	log.Critical(ctx, errCritical, attr1, attr2)
+}
+
+var (
+	errDefault = errors.New("default error").
+			WithKind(errors.KindInvalidInput).
+			WithCode("ERR_INVALID_INPUT").
+			WithRootError(e.New("root default error"))
+
+	errCritical = errors.New("critical error").
+			WithKind(errors.KindUnexpected).
+			WithCode("ERR_CRITICAL").
+			WithRootError(e.New("root critical error")).
+			WithStack().
+			Retryable(true)
+)
