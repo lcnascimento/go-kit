@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/backoff"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/lcnascimento/go-kit/env"
 )
@@ -22,7 +22,7 @@ const (
 	otlpDefaultBackoffMultiplier = 1.6
 )
 
-func getOTLPReader(ctx context.Context) (sdkMetric.Reader, error) {
+func getOTLPExporter() (metric.Exporter, error) {
 	endpoint := env.GetString("OTEL_OTLP_ENDPOINT", otlpDefaultEndpoint)
 	reconnectPeriod := env.GetInt("OTEL_OTLP_RECONNECT_PERIOD_IN_SECONDS", otlpDefaultReconnectPeriod)
 	timeout := env.GetInt("OTEL_OTLP_TIMEOUT_IN_SECONDS", otlpDefaultTimeout)
@@ -50,10 +50,5 @@ func getOTLPReader(ctx context.Context) (sdkMetric.Reader, error) {
 		),
 	}
 
-	exporter, err := otlpmetricgrpc.New(ctx, clientOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return sdkMetric.NewPeriodicReader(exporter), nil
+	return otlpmetricgrpc.New(context.Background(), clientOpts...)
 }
