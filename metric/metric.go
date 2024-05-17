@@ -23,6 +23,7 @@ func init() {
 
 	exporter, err = getMetricExporter()
 	if err != nil {
+		log.Error(context.Background(), err)
 		otel.SetMeterProvider(noop.NewMeterProvider())
 		return
 	}

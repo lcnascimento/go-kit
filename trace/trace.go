@@ -26,6 +26,7 @@ func init() {
 
 	exporter, err = getExporter()
 	if err != nil {
+		log.Error(context.Background(), err)
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return
 	}
