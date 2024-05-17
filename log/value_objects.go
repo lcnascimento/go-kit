@@ -111,11 +111,11 @@ func initLogLevel() {
 	name := env.GetString("LOG_LEVEL", "INFO")
 
 	level := levelByName[strings.ToUpper(name)]
-	if level != 0 {
-		logLevel.Set(level)
+	if level == 0 {
+		level = LevelInfo
 	}
 
-	logLevel.Set(LevelInfo)
+	logLevel.Set(level)
 }
 
 func defaultReplaceAttr(_ []string, a slog.Attr) slog.Attr {
