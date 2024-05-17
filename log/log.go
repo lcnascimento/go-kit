@@ -78,3 +78,17 @@ func Critical(ctx context.Context, err error, attrs ...slog.Attr) {
 func Criticalw(ctx context.Context, msg string, attrs ...slog.Attr) {
 	slog.LogAttrs(ctx, LevelCritical, msg, attributes(attrs...))
 }
+
+// Fatal logs fatal data based on an error object.
+// It exists the program.
+func Fatal(ctx context.Context, err error, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelFatal, err.Error(), attributes(attrs...), errorAttr(err))
+	os.Exit(1)
+}
+
+// Fatalw logs fatal data based on an error message.
+// It exists the program.
+func Fatalw(ctx context.Context, msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelFatal, msg, attributes(attrs...))
+	os.Exit(1)
+}

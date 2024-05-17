@@ -5,11 +5,11 @@ import (
 	e "errors"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/log"
 	"github.com/lcnascimento/go-kit/propagation"
-	"github.com/lcnascimento/go-kit/trace"
 )
 
 var tracer trace.Tracer

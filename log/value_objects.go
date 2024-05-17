@@ -20,6 +20,7 @@ const (
 	LevelWarn     = slog.LevelWarn
 	LevelError    = slog.LevelError
 	LevelCritical = slog.Level(12)
+	LevelFatal    = slog.Level(14)
 )
 
 const (
@@ -68,6 +69,7 @@ var levelNames = map[slog.Leveler]string{
 	LevelWarn:     "WARN",
 	LevelError:    "ERROR",
 	LevelCritical: "CRITICAL",
+	LevelFatal:    "FATAL",
 }
 
 var levelByName = map[string]slog.Level{
@@ -76,6 +78,7 @@ var levelByName = map[string]slog.Level{
 	"WARN":     LevelWarn,
 	"ERROR":    LevelError,
 	"CRITICAL": LevelCritical,
+	"FATAL":    LevelFatal,
 }
 
 type handler struct {
