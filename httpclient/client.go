@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/noop"
 
 	"github.com/lcnascimento/go-kit/errors"
 )
@@ -26,10 +24,6 @@ type httpClientProvider interface {
 type Client struct {
 	http    httpClientProvider
 	timeout time.Duration
-	meter   metric.Meter
-
-	metricRequestsCount   metric.Int64Counter
-	metricRequestsLatency metric.Int64Histogram
 }
 
 // New creates a new Client instance.
@@ -39,14 +33,11 @@ func New(opts ...Option) *Client {
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
 		timeout: time.Second * defaultTimeoutInSeconds,
-		meter:   noop.NewMeterProvider().Meter(""),
 	}
 
 	for _, opt := range opts {
 		opt(client)
 	}
-
-	client.mustInitMetrics()
 
 	return client
 }
@@ -111,7 +102,6 @@ func (c *Client) Get(ctx context.Context, request *HTTPRequest) (HTTPResult, err
 
 func (c *Client) processRequest(ctx context.Context, method string, request *HTTPRequest) (HTTPResult, error) {
 	queryValues := URL.Values{}
-
 	for key, value := range request.QueryParams {
 		queryValues.Add(key, value)
 	}
@@ -141,6 +131,8 @@ func (c *Client) processRequest(ctx context.Context, method string, request *HTT
 
 	start := time.Now()
 
+	span := c.onRequestStart(ctx, request.Host, request.Path, method)
+
 	res, err := c.http.Do(httpRequest)
 	if err != nil {
 		return HTTPResult{}, err
@@ -152,7 +144,7 @@ func (c *Client) processRequest(ctx context.Context, method string, request *HTT
 		return HTTPResult{}, err
 	}
 
-	c.onRequestEnd(ctx, request.Host, request.Path, method, res.StatusCode, start)
+	c.onRequestEnd(ctx, span, request.Host, request.Path, method, res.StatusCode, start)
 
 	return HTTPResult{
 		Response:   body,

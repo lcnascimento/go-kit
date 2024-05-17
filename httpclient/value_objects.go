@@ -2,8 +2,6 @@ package httpclient
 
 import (
 	"time"
-
-	"go.opentelemetry.io/otel/metric"
 )
 
 // Option is a type to set HTTP Client options.
@@ -13,13 +11,6 @@ type Option func(*Client)
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) {
 		c.timeout = timeout
-	}
-}
-
-// WithMeter instructs the HTTP Client to export its internal performance metrics.
-func WithMeter(meter metric.Meter) Option {
-	return func(c *Client) {
-		c.meter = meter
 	}
 }
 
