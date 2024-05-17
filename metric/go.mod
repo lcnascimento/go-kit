@@ -17,7 +17,12 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-slog/otelslog v0.1.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
+	github.com/lcnascimento/go-kit/errors v1.2.0 // indirect
+	github.com/lcnascimento/go-kit/log v1.4.1 // indirect
+	github.com/lcnascimento/go-kit/propagation v1.0.0 // indirect
+	github.com/lcnascimento/go-kit/runtime v1.0.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.2.0 // indirect
 	golang.org/x/net v0.23.0 // indirect

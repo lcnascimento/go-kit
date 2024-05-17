@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -12,10 +13,15 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	"github.com/lcnascimento/go-kit/env"
+	"github.com/lcnascimento/go-kit/log"
 )
 
+var exporter metric.Exporter
+
 func init() {
-	exporter, err := getMetricExporter()
+	var err error
+
+	exporter, err = getMetricExporter()
 	if err != nil {
 		otel.SetMeterProvider(noop.NewMeterProvider())
 		return
@@ -24,11 +30,25 @@ func init() {
 	setupMeterProvider(exporter)
 }
 
+// Shutdown flushes all metric data held by an exporter and releases any held computational resources.
+func Shutdown(ctx context.Context) error {
+	if exporter == nil {
+		return nil
+	}
+
+	log.Debug(ctx, "Shutting down Metric Exporter...")
+	return exporter.Shutdown(ctx)
+}
+
 func getMetricExporter() (metric.Exporter, error) {
+	ctx := context.Background()
+
 	switch strings.ToUpper(env.GetString("OTEL_METRIC_EXPORTER")) {
 	case "OTLP":
+		log.Debug(ctx, "Installing OTLP Metric Exporter...")
 		return getOTLPExporter()
 	default:
+		log.Debug(ctx, "Installing STDOUT Metric Exporter...")
 		return stdoutmetric.New(stdoutmetric.WithPrettyPrint())
 	}
 }
