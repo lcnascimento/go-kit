@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"context"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -13,12 +14,17 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/lcnascimento/go-kit/env"
+	"github.com/lcnascimento/go-kit/log"
 )
 
 const defaultTraceRatio = 0.1
 
+var exporter sdkTrace.SpanExporter
+
 func init() {
-	exporter, err := getExporter()
+	var err error
+
+	exporter, err = getExporter()
 	if err != nil {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return
@@ -27,11 +33,25 @@ func init() {
 	setupTracerProvider(exporter)
 }
 
+// Shutdown notifies the configured exporter of a pending halt to operations.
+func Shutdown(ctx context.Context) error {
+	if exporter == nil {
+		return nil
+	}
+
+	log.Debug(ctx, "Shutting down Trace Exporter...")
+	return exporter.Shutdown(ctx)
+}
+
 func getExporter() (sdkTrace.SpanExporter, error) {
+	ctx := context.Background()
+
 	switch strings.ToUpper(env.GetString("OTEL_SPAN_EXPORTER")) {
 	case "OTLP":
+		log.Debug(ctx, "Installing OTLP Trace Exporter...")
 		return getOTLPExporter()
 	default:
+		log.Debug(ctx, "Installing STDOUT Trace Exporter...")
 		return stdouttrace.New(stdouttrace.WithPrettyPrint())
 	}
 }
