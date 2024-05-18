@@ -56,7 +56,7 @@ func (c *Client) onRequestStart(ctx context.Context, host, path, method string) 
 
 	log.Debug(
 		ctx,
-		"http request completed",
+		"http request started",
 		log.String("host", host),
 		log.String("path", path),
 		log.String("method", method),
