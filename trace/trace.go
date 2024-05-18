@@ -19,35 +19,33 @@ import (
 
 const defaultTraceRatio = 0.1
 
-var exporter sdkTrace.SpanExporter
+var provider *sdkTrace.TracerProvider
 
 func init() {
-	var err error
-
-	exporter, err = getExporter()
+	exporter, err := getExporter()
 	if err != nil {
 		log.Error(context.Background(), err)
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return
 	}
 
-	setupTracerProvider(exporter)
+	provider = setupTracerProvider(exporter)
 }
 
 // Shutdown notifies the configured exporter of a pending halt to operations.
 func Shutdown(ctx context.Context) error {
-	if exporter == nil {
+	if provider == nil {
 		return nil
 	}
 
-	log.Debug(ctx, "Shutting down Trace Exporter...")
-	return exporter.Shutdown(ctx)
+	log.Debug(ctx, "Shutting down Tracer Provider...")
+	return provider.Shutdown(ctx)
 }
 
 func getExporter() (sdkTrace.SpanExporter, error) {
 	ctx := context.Background()
 
-	switch strings.ToUpper(env.GetString("OTEL_SPAN_EXPORTER")) {
+	switch strings.ToUpper(env.GetString("OTEL_TRACE_EXPORTER")) {
 	case "OTLP":
 		log.Debug(ctx, "Installing OTLP Trace Exporter...")
 		return getOTLPExporter()
@@ -57,7 +55,7 @@ func getExporter() (sdkTrace.SpanExporter, error) {
 	}
 }
 
-func setupTracerProvider(exporter sdkTrace.SpanExporter) {
+func setupTracerProvider(exporter sdkTrace.SpanExporter) *sdkTrace.TracerProvider {
 	serviceName := env.GetString("SERVICE_NAME", "unknown")
 	serviceVersion := env.GetString("SERVICE_VERSION", "v0.0.0")
 
@@ -76,9 +74,12 @@ func setupTracerProvider(exporter sdkTrace.SpanExporter) {
 
 	tp := sdkTrace.NewTracerProvider(options...)
 
+	log.Debug(context.Background(), "Setting up Tracer Provider...")
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
+
+	return tp
 }
