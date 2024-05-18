@@ -7,25 +7,23 @@ import (
 )
 
 func main() {
-	// ctx := runtime.ContextWithOSSignalCancellation()
-	// ctx = ctx
+	fmt.Println("### Stack ####")
+	func3()
 
-	err := func3()
-	fmt.Println(err)
+	fmt.Println("\n\n### Caller ####")
+	fmt.Println(runtime.Caller().String())
 }
 
-func func1() error {
+func func1() {
 	for _, f := range runtime.Stack() {
-		fmt.Printf("%s:%d (%s)\n", f.File, f.LineNumber, f.Name)
+		fmt.Println(f.String())
 	}
-
-	return fmt.Errorf("fake error")
 }
 
-func func2() error {
-	return func1()
+func func2() {
+	func1()
 }
 
-func func3() error {
-	return func2()
+func func3() {
+	func2()
 }

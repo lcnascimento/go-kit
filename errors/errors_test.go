@@ -275,7 +275,7 @@ func TestStack(t *testing.T) {
 	tt := []struct {
 		name     string
 		err      error
-		expected []runtime.StackFrame
+		expected []*runtime.StackFrame
 	}{
 		{
 			name:     "go native error",

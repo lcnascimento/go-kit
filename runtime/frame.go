@@ -1,12 +1,13 @@
 package runtime
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 )
 
 const (
-	maxStackDepth = 30
+	maxStackDepth = 20
 	callerSkip    = 2
 )
 
@@ -25,38 +26,40 @@ type StackFrame struct {
 	ProgramCounter uintptr
 }
 
+// Caller returns the frame of the calling function.
+func Caller() *StackFrame {
+	var pcs [1]uintptr
+	runtime.Callers(callerSkip, pcs[:])
+
+	return frameFromPc(pcs[0])
+}
+
 // Stack produces a stack trace for the current caller.
-func Stack() []StackFrame {
+func Stack() []*StackFrame {
 	stack := make([]uintptr, maxStackDepth)
 	length := runtime.Callers(callerSkip, stack)
 
-	frames := []StackFrame{}
+	frames := []*StackFrame{}
 
 	for _, pc := range stack[:length] {
-		frame := StackFrame{ProgramCounter: pc}
-		if frame.Func() == nil {
-			frames = append(frames, frame)
-			continue
-		}
-
-		// pc -1 because the program counters we use are usually return addresses,
-		// and we want to show the line that corresponds to the function call
-		frame.File, frame.LineNumber = frame.Func().FileLine(pc - 1)
-		frame.Package, frame.Name = packageAndName(frame.Func())
-
-		frames = append(frames, frame)
+		frames = append(frames, frameFromPc(pc))
 	}
 
 	return frames
 }
 
 // Func returns the function that contained this frame.
-func (frame *StackFrame) Func() *runtime.Func {
-	if frame.ProgramCounter == 0 {
+func (f *StackFrame) Func() *runtime.Func {
+	if f.ProgramCounter == 0 {
 		return nil
 	}
 
-	return runtime.FuncForPC(frame.ProgramCounter)
+	return runtime.FuncForPC(f.ProgramCounter)
+}
+
+// String is the string representation of a StackFrame.
+func (f *StackFrame) String() string {
+	return fmt.Sprintf("%s:%d", f.File, f.LineNumber)
 }
 
 func packageAndName(fn *runtime.Func) (name, pkg string) {
@@ -81,4 +84,18 @@ func packageAndName(fn *runtime.Func) (name, pkg string) {
 
 	name = strings.ReplaceAll(name, "·", ".")
 	return pkg, name
+}
+
+func frameFromPc(pc uintptr) *StackFrame {
+	frame := StackFrame{ProgramCounter: pc}
+	if frame.Func() == nil {
+		return &frame
+	}
+
+	// pc -1 because the program counters we use are usually return addresses,
+	// and we want to show the line that corresponds to the function call
+	frame.File, frame.LineNumber = frame.Func().FileLine(pc - 1)
+	frame.Package, frame.Name = packageAndName(frame.Func())
+
+	return &frame
 }

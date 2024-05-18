@@ -139,11 +139,11 @@ func defaultReplaceAttr(_ []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-func stackList(stack []runtime.StackFrame) []string {
+func stackList(stack []*runtime.StackFrame) []string {
 	list := []string{}
 
-	for _, s := range stack {
-		list = append(list, fmt.Sprintf("%s:%d", s.File, s.LineNumber))
+	for _, f := range stack {
+		list = append(list, f.String())
 	}
 
 	return list

@@ -25,7 +25,7 @@ type CustomError struct {
 	rootErr   error
 	message   string
 	retryable bool
-	stack     []runtime.StackFrame
+	stack     []*runtime.StackFrame
 }
 
 const (
@@ -184,7 +184,7 @@ func Retryable(err error) bool {
 
 // Stack this method receives an error, then compares its interface type with the CustomError interface.
 // If the interfaces types matches, returns its Stack Trace.
-func Stack(err error) []runtime.StackFrame {
+func Stack(err error) []*runtime.StackFrame {
 	var customError CustomError
 	if e.As(err, &customError) {
 		return customError.stack
