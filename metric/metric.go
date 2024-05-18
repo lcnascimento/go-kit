@@ -16,29 +16,27 @@ import (
 	"github.com/lcnascimento/go-kit/log"
 )
 
-var exporter metric.Exporter
+var provider *metric.MeterProvider
 
 func init() {
-	var err error
-
-	exporter, err = getMetricExporter()
+	exporter, err := getMetricExporter()
 	if err != nil {
 		log.Error(context.Background(), err)
 		otel.SetMeterProvider(noop.NewMeterProvider())
 		return
 	}
 
-	setupMeterProvider(exporter)
+	provider = setupMeterProvider(exporter)
 }
 
 // Shutdown flushes all metric data held by an exporter and releases any held computational resources.
 func Shutdown(ctx context.Context) error {
-	if exporter == nil {
+	if provider == nil {
 		return nil
 	}
 
-	log.Debug(ctx, "Shutting down Metric Exporter...")
-	return exporter.Shutdown(ctx)
+	log.Debug(ctx, "Shutting down Meter Provider...")
+	return provider.Shutdown(ctx)
 }
 
 func getMetricExporter() (metric.Exporter, error) {
@@ -54,7 +52,7 @@ func getMetricExporter() (metric.Exporter, error) {
 	}
 }
 
-func setupMeterProvider(exporter metric.Exporter) {
+func setupMeterProvider(exporter metric.Exporter) *metric.MeterProvider {
 	serviceName := env.GetString("SERVICE_NAME", "unknown")
 	serviceVersion := env.GetString("SERVICE_VERSION", "v0.0.0")
 
@@ -70,7 +68,9 @@ func setupMeterProvider(exporter metric.Exporter) {
 		metric.WithReader(reader),
 	}
 
+	log.Debug(context.Background(), "Setting up Meter Provider...")
 	mp := metric.NewMeterProvider(opts...)
-
 	otel.SetMeterProvider(mp)
+
+	return mp
 }
