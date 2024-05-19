@@ -6,8 +6,8 @@ github.com/lcnascimento/go-kit/env v1.0.0 h1:d6PGrhgh5me6VQpZO4+Hp2NhPn9g/Q3gfUZ
 github.com/lcnascimento/go-kit/env v1.0.0/go.mod h1:qtZw5G2dkPGs1mIOOPDgBiJ7XkQcpnbE9bxL23gfBcc=
 github.com/lcnascimento/go-kit/propagation v1.0.0 h1:XwPetKzIeLne/DRhH9V7T7dQS5gHAWC8tKb2lgWWM90=
 github.com/lcnascimento/go-kit/propagation v1.0.0/go.mod h1:CBdRZpGMi+euPp5a9sJ2y1KkuKhmavsfnKBMYuLqXUM=
-github.com/lcnascimento/go-kit/runtime v1.1.0 h1:d4ahfqqc8djyx/ENn7NU/b8/cKPNysETv1kF+gAjp70=
-github.com/lcnascimento/go-kit/runtime v1.1.0/go.mod h1:pauL3o8GJ4d/tndiSnuxgxvcw7PlyNDQBlcFNV2t9lo=
+github.com/lcnascimento/go-kit/runtime v1.1.1 h1:/+XB8YCY99ydizvdsCXcsbsGg5CR9z4qdMEsCUoo6Tc=
+github.com/lcnascimento/go-kit/runtime v1.1.1/go.mod h1:pauL3o8GJ4d/tndiSnuxgxvcw7PlyNDQBlcFNV2t9lo=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=

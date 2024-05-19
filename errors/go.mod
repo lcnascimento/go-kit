@@ -3,7 +3,7 @@ module github.com/lcnascimento/go-kit/errors
 go 1.22.2
 
 require (
-	github.com/lcnascimento/go-kit/runtime v1.1.0
+	github.com/lcnascimento/go-kit/runtime v1.1.1
 	github.com/stretchr/testify v1.9.0
 )
 

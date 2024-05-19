@@ -73,7 +73,6 @@ func NewMissingRequiredDependency(name string) error {
 	return New("Missing required dependency: %s", name).
 		WithKind(KindInvalidInput).
 		WithCode("MISSING_REQUIRED_DEPENDENCY").
-		WithStack().
 		Retryable(false)
 }
 
@@ -82,7 +81,6 @@ func NewValidationError(desc string) error {
 	return New(desc).
 		WithKind(KindInvalidInput).
 		WithCode("VALIDATION_ERROR").
-		WithStack().
 		Retryable(false)
 }
 
