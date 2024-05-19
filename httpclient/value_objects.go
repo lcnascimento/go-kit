@@ -14,28 +14,28 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// HTTPHeaders is a map containing the relation key=value of the headers used on the http rest request.
-type HTTPHeaders map[string]string
+// Headers is a map containing the relation key=value of the headers used on the http rest request.
+type Headers map[string]string
 
-// HTTPPathParams is a map containing the relation key=value of the path params used on the http rest request.
+// PathParams is a map containing the relation key=value of the path params used on the http rest request.
 // It will be used to replace values given in Path parameter.
-type HTTPPathParams map[string]string
+type PathParams map[string]string
 
-// HTTPQueryParams is a map containing the relation key=value of the query params used on the http rest request.
-type HTTPQueryParams map[string]string
+// QueryParams is a map containing the relation key=value of the query params used on the http rest request.
+type QueryParams map[string]string
 
-// HTTPRequest are the params used to build a new http rest request.
-type HTTPRequest struct {
+// Request are the params used to build a new http rest request.
+type Request struct {
 	Host        string
 	Path        string
 	Body        []byte
-	Headers     HTTPHeaders
-	QueryParams HTTPQueryParams
-	PathParams  HTTPPathParams
+	Headers     Headers
+	QueryParams QueryParams
+	PathParams  PathParams
 }
 
-// HTTPResult are the params returned from the client HTTP request.
-type HTTPResult struct {
+// Response encapsulates data returned from the client HTTP request.
+type Response struct {
 	StatusCode int
-	Response   []byte
+	Body       []byte
 }

@@ -43,7 +43,7 @@ func New(opts ...Option) *Client {
 }
 
 // Patch execute a http PATCH method with application/json headers.
-func (c *Client) Patch(ctx context.Context, request *HTTPRequest) (rst HTTPResult, err error) {
+func (c *Client) Patch(ctx context.Context, request *Request) (rst Response, err error) {
 	if request.Headers == nil {
 		request.Headers = make(map[string]string)
 	}
@@ -54,7 +54,7 @@ func (c *Client) Patch(ctx context.Context, request *HTTPRequest) (rst HTTPResul
 }
 
 // Put execute a http PUT method with application/json headers.
-func (c *Client) Put(ctx context.Context, request *HTTPRequest) (rst HTTPResult, err error) {
+func (c *Client) Put(ctx context.Context, request *Request) (rst Response, err error) {
 	if request.Headers == nil {
 		request.Headers = make(map[string]string)
 	}
@@ -65,7 +65,7 @@ func (c *Client) Put(ctx context.Context, request *HTTPRequest) (rst HTTPResult,
 }
 
 // Post execute a http POST method with application/json headers.
-func (c *Client) Post(ctx context.Context, request *HTTPRequest) (HTTPResult, error) {
+func (c *Client) Post(ctx context.Context, request *Request) (Response, error) {
 	if request.Headers == nil {
 		request.Headers = make(map[string]string)
 	}
@@ -76,7 +76,7 @@ func (c *Client) Post(ctx context.Context, request *HTTPRequest) (HTTPResult, er
 }
 
 // PostForm execute a http POST method with x-www-form-urlencoded headers.
-func (c *Client) PostForm(ctx context.Context, request *HTTPRequest) (HTTPResult, error) {
+func (c *Client) PostForm(ctx context.Context, request *Request) (Response, error) {
 	if request.Headers == nil {
 		request.Headers = make(map[string]string)
 	}
@@ -87,7 +87,7 @@ func (c *Client) PostForm(ctx context.Context, request *HTTPRequest) (HTTPResult
 }
 
 // Delete execute a http DELETE method with application/json headers.
-func (c *Client) Delete(ctx context.Context, request *HTTPRequest) (HTTPResult, error) {
+func (c *Client) Delete(ctx context.Context, request *Request) (Response, error) {
 	if request.Headers == nil {
 		request.Headers = make(map[string]string)
 	}
@@ -96,11 +96,11 @@ func (c *Client) Delete(ctx context.Context, request *HTTPRequest) (HTTPResult, 
 }
 
 // Get execute a http GET method.
-func (c *Client) Get(ctx context.Context, request *HTTPRequest) (HTTPResult, error) {
+func (c *Client) Get(ctx context.Context, request *Request) (Response, error) {
 	return c.processRequest(ctx, "GET", request)
 }
 
-func (c *Client) processRequest(ctx context.Context, method string, request *HTTPRequest) (HTTPResult, error) {
+func (c *Client) processRequest(ctx context.Context, method string, request *Request) (Response, error) {
 	queryValues := URL.Values{}
 	for key, value := range request.QueryParams {
 		queryValues.Add(key, value)
@@ -115,39 +115,39 @@ func (c *Client) processRequest(ctx context.Context, method string, request *HTT
 
 	url, err := URL.Parse(uri)
 	if err != nil {
-		return HTTPResult{}, errors.New("error on parsing the request url")
+		return Response{}, errors.New("error on parsing the request url")
 	}
 
 	url.RawQuery = queryValues.Encode()
 
-	httpRequest, err := http.NewRequestWithContext(ctx, method, url.String(), bytes.NewBuffer(request.Body))
+	Request, err := http.NewRequestWithContext(ctx, method, url.String(), bytes.NewBuffer(request.Body))
 	if err != nil {
-		return HTTPResult{}, err
+		return Response{}, err
 	}
 
 	for key, value := range request.Headers {
-		httpRequest.Header.Add(key, value)
+		Request.Header.Add(key, value)
 	}
 
 	start := time.Now()
 
 	span := c.onRequestStart(ctx, request.Host, request.Path, method)
 
-	res, err := c.http.Do(httpRequest)
+	res, err := c.http.Do(Request)
 	if err != nil {
-		return HTTPResult{}, err
+		return Response{}, err
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return HTTPResult{}, err
+		return Response{}, err
 	}
 
 	c.onRequestEnd(ctx, span, request.Host, request.Path, method, res.StatusCode, start)
 
-	return HTTPResult{
-		Response:   body,
+	return Response{
+		Body:       body,
 		StatusCode: res.StatusCode,
 	}, nil
 }

@@ -14,10 +14,10 @@ func main() {
 	log.SetLevel(log.LevelDebug)
 	client := httpclient.New()
 
-	res, err := client.Get(ctx, &httpclient.HTTPRequest{
+	res, err := client.Get(ctx, &httpclient.Request{
 		Host: "https://api.open-meteo.com",
 		Path: "/v1/forecast",
-		QueryParams: httpclient.HTTPQueryParams{
+		QueryParams: httpclient.QueryParams{
 			"latitude":  "42.22",
 			"longitude": "23.39",
 			"current":   "temperature_2m",
@@ -27,10 +27,10 @@ func main() {
 		log.Fatal(ctx, err)
 	}
 
-	var data map[string]any
-	if err := json.Unmarshal(res.Response, &data); err != nil {
+	var body map[string]any
+	if err := json.Unmarshal(res.Body, &body); err != nil {
 		log.Fatal(ctx, err)
 	}
 
-	log.Info(ctx, "temperature fetched", log.Any("data", data))
+	log.Info(ctx, "temperature fetched", log.Any("data", body))
 }
