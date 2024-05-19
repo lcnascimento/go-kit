@@ -10,6 +10,8 @@ linters-settings:
     ignore-comments: true
 
   gocritic:
+    disabled-checks:
+      - exitAfterDefer
     enabled-tags:
       - diagnostic
       - experimental
@@ -117,6 +119,5 @@ issues:
     - EXC0014
 
 output:
-  formats: "colored-line-number"
   print-issued-lines: true
   print-linter-name: true

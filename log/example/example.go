@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	e "errors"
+	"log/slog"
+	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -19,6 +21,8 @@ func init() {
 }
 
 func main() {
+	defer os.Exit(0)
+
 	foo := propagation.ContextKey("foo")
 	bar := propagation.ContextKey("bar")
 
@@ -35,17 +39,22 @@ func main() {
 	ctx, span := tracer.Start(ctx, "main")
 	defer span.End()
 
-	attr1 := log.String("attr1", "value1")
-	attr2 := log.String("attr2", "value2")
+	defer log.Info(ctx, "Deferred")
 
-	log.Debug(ctx, "Debug", attr1, attr2)
-	log.Info(ctx, "Info", attr1, attr2)
-	log.Warn(ctx, "Warn", attr1, attr2)
-	log.Errorw(ctx, "Error", attr1, attr2)
-	log.Criticalw(ctx, "Critical", attr1, attr2)
+	attrs := []slog.Attr{
+		log.String("attr1", "value1"),
+		log.String("attr2", "value2"),
+	}
 
-	log.Error(ctx, errDefault, attr1, attr2)
-	log.Critical(ctx, errCritical, attr1, attr2)
+	log.Debug(ctx, "Debug", attrs...)
+	log.Info(ctx, "Info", attrs...)
+	log.Warn(ctx, "Warn", attrs...)
+	log.Errorw(ctx, "Error", attrs...)
+	log.Criticalw(ctx, "Critical", attrs...)
+
+	log.Error(ctx, errDefault.WithStack(), attrs...)
+	log.Critical(ctx, errCritical.WithStack(), attrs...)
+	log.Fatal(ctx, errFatal.WithStack(), attrs...)
 }
 
 var (
@@ -58,6 +67,10 @@ var (
 			WithKind(errors.KindUnexpected).
 			WithCode("ERR_CRITICAL").
 			WithRootError(e.New("root critical error")).
-			WithStack().
 			Retryable(true)
+
+	errFatal = errors.New("fatal error").
+			WithKind(errors.KindUnexpected).
+			WithCode("ERR_FATAL").
+			WithRootError(e.New("root fatal error"))
 )
