@@ -8,7 +8,7 @@ import (
 
 const (
 	maxStackDepth = 20
-	callerSkip    = 2
+	callerSkip    = 3
 )
 
 // A StackFrame contains all necessary information about to generate a line
