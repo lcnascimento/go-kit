@@ -2,6 +2,9 @@ package httpclient
 
 import (
 	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -90,4 +93,54 @@ func (c *Client) onRequestEnd(ctx context.Context, span trace.Span, host, path, 
 		log.Int("status_code", status),
 		log.String("latency", latency.String()),
 	)
+}
+
+func (c *Client) onParseURLError(ctx context.Context, url string, err error) error {
+	err = ErrParseURL(err)
+	log.Error(ctx, err, log.String("url", url))
+
+	return err
+}
+
+func (c *Client) onBuildRequestError(ctx context.Context, err error) error {
+	err = ErrBuildRequestError(err)
+	log.Error(ctx, err)
+
+	return err
+}
+
+func (c *Client) onRequestError(ctx context.Context, err error) error {
+	err = ErrRequestError(err)
+	log.Error(ctx, err)
+
+	return err
+}
+
+func (c *Client) onBodyReadError(ctx context.Context, err error) error {
+	err = ErrBodyReadError(err)
+	log.Error(ctx, err)
+
+	return err
+}
+
+func (c *Client) onUnexpectedStatusCode(ctx context.Context, code int, b []byte) error {
+	var body map[string]any
+	_ = json.Unmarshal(b, &body)
+
+	attrs := []slog.Attr{
+		slog.Int("status_code", code),
+	}
+	if len(body) > 0 {
+		attrs = append(attrs, slog.Any("body", body))
+	}
+
+	err := ErrUnexpectedStatusCode(code)
+
+	if code < http.StatusInternalServerError {
+		log.Warn(ctx, err.Error(), attrs...)
+	} else {
+		log.Error(ctx, err, attrs...)
+	}
+
+	return err
 }

@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
-	"github.com/lcnascimento/go-kit/errors"
 )
 
 const defaultTimeoutInSeconds = 30
@@ -43,71 +41,122 @@ func New(opts ...Option) *Client {
 }
 
 // Patch execute a http PATCH method with application/json headers.
-func (c *Client) Patch(ctx context.Context, request *Request) (rst Response, err error) {
-	if request.Headers == nil {
-		request.Headers = make(map[string]string)
+func (c *Client) Patch(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
 	}
 
-	request.Headers["content-type"] = "application/json"
+	req.Headers["content-type"] = "application/json"
 
-	return c.processRequest(ctx, "PATCH", request)
+	return c.processRequest(ctx, "PATCH", req, opts...)
 }
 
 // Put execute a http PUT method with application/json headers.
-func (c *Client) Put(ctx context.Context, request *Request) (rst Response, err error) {
-	if request.Headers == nil {
-		request.Headers = make(map[string]string)
+func (c *Client) Put(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
 	}
 
-	request.Headers["content-type"] = "application/json"
+	req.Headers["content-type"] = "application/json"
 
-	return c.processRequest(ctx, "PUT", request)
+	return c.processRequest(ctx, "PUT", req, opts...)
 }
 
 // Post execute a http POST method with application/json headers.
-func (c *Client) Post(ctx context.Context, request *Request) (Response, error) {
-	if request.Headers == nil {
-		request.Headers = make(map[string]string)
+func (c *Client) Post(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
 	}
 
-	request.Headers["content-type"] = "application/json"
+	req.Headers["content-type"] = "application/json"
 
-	return c.processRequest(ctx, "POST", request)
+	return c.processRequest(ctx, "POST", req, opts...)
 }
 
 // PostForm execute a http POST method with x-www-form-urlencoded headers.
-func (c *Client) PostForm(ctx context.Context, request *Request) (Response, error) {
-	if request.Headers == nil {
-		request.Headers = make(map[string]string)
+func (c *Client) PostForm(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
 	}
 
-	request.Headers["content-type"] = "application/x-www-form-urlencoded"
+	req.Headers["content-type"] = "application/x-www-form-urlencoded"
 
-	return c.processRequest(ctx, "POST", request)
+	return c.processRequest(ctx, "POST", req, opts...)
 }
 
 // Delete execute a http DELETE method with application/json headers.
-func (c *Client) Delete(ctx context.Context, request *Request) (Response, error) {
-	if request.Headers == nil {
-		request.Headers = make(map[string]string)
+func (c *Client) Delete(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	if req.Headers == nil {
+		req.Headers = make(map[string]string)
 	}
 
-	return c.processRequest(ctx, "DELETE", request)
+	return c.processRequest(ctx, "DELETE", req, opts...)
 }
 
 // Get execute a http GET method.
-func (c *Client) Get(ctx context.Context, request *Request) (Response, error) {
-	return c.processRequest(ctx, "GET", request)
+func (c *Client) Get(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+	return c.processRequest(ctx, "GET", req, opts...)
 }
 
-func (c *Client) processRequest(ctx context.Context, method string, request *Request) (Response, error) {
+func (c *Client) processRequest(ctx context.Context, method string, req *Request, opts ...RequestOption) (*Response, error) {
+	for _, opt := range opts {
+		opt(req)
+	}
+
+	url, err := c.buildURL(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, url.String(), bytes.NewBuffer(req.Body))
+	if err != nil {
+		return nil, c.onBuildRequestError(ctx, err)
+	}
+
+	for key, value := range req.Headers {
+		request.Header.Add(key, value)
+	}
+
+	start := time.Now()
+
+	span := c.onRequestStart(ctx, request.Host, req.Path, method)
+
+	res, err := c.http.Do(request)
+	if err != nil {
+		return nil, c.onRequestError(ctx, err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, c.onBodyReadError(ctx, err)
+	}
+
+	c.onRequestEnd(ctx, span, request.Host, req.Path, method, res.StatusCode, start)
+
+	response := &Response{
+		Body:       body,
+		StatusCode: res.StatusCode,
+	}
+
+	configNonAcceptable := req.acceptableStatusCodes != nil && !req.acceptableStatusCodes[res.StatusCode]
+	defaultNonAcceptable := res.StatusCode >= http.StatusBadRequest
+
+	if configNonAcceptable || defaultNonAcceptable {
+		return response, c.onUnexpectedStatusCode(ctx, response.StatusCode, response.Body)
+	}
+
+	return response, nil
+}
+
+func (c *Client) buildURL(ctx context.Context, req *Request) (*URL.URL, error) {
 	queryValues := URL.Values{}
-	for key, value := range request.QueryParams {
+	for key, value := range req.QueryParams {
 		queryValues.Add(key, value)
 	}
 
-	uri := request.Host + request.Path
-	for p, v := range request.PathParams {
+	uri := req.Host + req.Path
+	for p, v := range req.PathParams {
 		if strings.Contains(uri, ":"+p) {
 			uri = strings.ReplaceAll(uri, ":"+p, v)
 		}
@@ -115,39 +164,10 @@ func (c *Client) processRequest(ctx context.Context, method string, request *Req
 
 	url, err := URL.Parse(uri)
 	if err != nil {
-		return Response{}, errors.New("error on parsing the request url")
+		return nil, c.onParseURLError(ctx, uri, err)
 	}
 
 	url.RawQuery = queryValues.Encode()
 
-	Request, err := http.NewRequestWithContext(ctx, method, url.String(), bytes.NewBuffer(request.Body))
-	if err != nil {
-		return Response{}, err
-	}
-
-	for key, value := range request.Headers {
-		Request.Header.Add(key, value)
-	}
-
-	start := time.Now()
-
-	span := c.onRequestStart(ctx, request.Host, request.Path, method)
-
-	res, err := c.http.Do(Request)
-	if err != nil {
-		return Response{}, err
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return Response{}, err
-	}
-
-	c.onRequestEnd(ctx, span, request.Host, request.Path, method, res.StatusCode, start)
-
-	return Response{
-		Body:       body,
-		StatusCode: res.StatusCode,
-	}, nil
+	return url, nil
 }

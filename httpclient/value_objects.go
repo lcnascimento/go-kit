@@ -32,6 +32,23 @@ type Request struct {
 	Headers     Headers
 	QueryParams QueryParams
 	PathParams  PathParams
+
+	acceptableStatusCodes map[int]bool
+}
+
+// RequestOption is a type to set HTTP Request options.
+type RequestOption func(*Request)
+
+// WithAcceptStatusCode indicates that the current request accepts the given status code.
+// It is possible to use this option multiple times for different status codes in the same request.
+func WithAcceptStatusCode(code int) RequestOption {
+	return func(r *Request) {
+		if r.acceptableStatusCodes == nil {
+			r.acceptableStatusCodes = map[int]bool{}
+		}
+
+		r.acceptableStatusCodes[code] = true
+	}
 }
 
 // Response encapsulates data returned from the client HTTP request.
