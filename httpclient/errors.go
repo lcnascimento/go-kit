@@ -49,6 +49,14 @@ var (
 			WithKind(kind).
 			Retryable(retry)
 	}
+
+	ErrBodyCastError = func(err error) error {
+		return errors.New("could not cast http response body").
+			WithCode("ERR_HTTP_RESPONSE_BODY_CAST").
+			WithKind(errors.KindUnexpected).
+			WithRootError(err).
+			Retryable(false)
+	}
 )
 
 func kindByStatusCode(code int) errors.KindType {
