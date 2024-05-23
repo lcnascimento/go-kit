@@ -144,18 +144,3 @@ func (c *Client) onUnexpectedStatusCode(ctx context.Context, code int, b []byte)
 
 	return err
 }
-
-func (b Body) onCastError(ctx context.Context, err error) error {
-	var body map[string]any
-	_ = json.Unmarshal(b, &body)
-
-	attrs := []slog.Attr{}
-	if len(body) > 0 {
-		attrs = append(attrs, slog.Any("body", body))
-	}
-
-	err = ErrBodyCastError(err)
-	log.Error(ctx, err, attrs...)
-
-	return err
-}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 
@@ -33,7 +34,8 @@ func main() {
 	}
 
 	var body map[string]any
-	if err := res.Body.Cast(ctx, &body); err != nil {
+	if err := json.Unmarshal(res.Body, &body); err != nil {
+		log.Fatal(ctx, err)
 		return
 	}
 

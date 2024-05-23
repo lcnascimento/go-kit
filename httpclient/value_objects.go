@@ -1,8 +1,6 @@
 package httpclient
 
 import (
-	"context"
-	"encoding/json"
 	"time"
 )
 
@@ -53,21 +51,8 @@ func WithAcceptStatusCode(code int) RequestOption {
 	}
 }
 
-// Body is a wrapper around HTTP response body.
-type Body []byte
-
-// Cast casts the body content into the given output object.
-// The output must be a pointer to the desired type.
-func (b Body) Cast(ctx context.Context, out any) error {
-	if err := json.Unmarshal(b, out); err != nil {
-		return b.onCastError(ctx, err)
-	}
-
-	return nil
-}
-
 // Response encapsulates data returned from the client HTTP request.
 type Response struct {
 	StatusCode int
-	Body       Body
+	Body       []byte
 }
