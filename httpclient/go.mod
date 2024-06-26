@@ -3,8 +3,8 @@ module github.com/lcnascimento/go-kit/httpclient
 go 1.22.2
 
 require (
-	github.com/lcnascimento/go-kit/errors v1.4.1
-	github.com/lcnascimento/go-kit/log v1.5.1
+	github.com/lcnascimento/go-kit/errors v1.5.0
+	github.com/lcnascimento/go-kit/log v1.7.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.51.0
 	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/metric v1.26.0
