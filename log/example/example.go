@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/log"
 	"github.com/lcnascimento/go-kit/propagation"
 )
@@ -49,4 +50,7 @@ func main() {
 	log.Warn(ctx, "Warn", attrs...)
 	log.Errorw(ctx, "Error", attrs...)
 	log.Criticalw(ctx, "Critical", attrs...)
+
+	log.Error(ctx, errors.New("Custom Error"), attrs...)
+	log.Critical(ctx, errors.New("Custom Critical Error"), attrs...)
 }

@@ -41,7 +41,7 @@ var (
 			slog.Bool("retryable", errors.IsRetryable(err)),
 		}
 
-		if stack := errors.Unwrap(err); len(stack) > 0 {
+		if stack := errors.Unwrap(err); len(stack) > 1 {
 			attrs = append(attrs, slog.Any("stack", stackList(stack)))
 		}
 
