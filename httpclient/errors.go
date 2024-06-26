@@ -12,50 +12,51 @@ var (
 		return errors.New("error on parsing the request url").
 			WithCode("ERR_PARSE_REQUEST_URL").
 			WithKind(errors.KindInvalidInput).
-			WithRootError(err).
-			Retryable(false)
+			WithCause(err)
 	}
 
 	ErrBuildRequestError = func(err error) error {
 		return errors.New("could not build http request").
 			WithCode("ERR_BUILD_HTTP_REQUEST").
 			WithKind(errors.KindInternal).
-			WithRootError(err).
-			Retryable(false)
+			WithCause(err)
 	}
 
 	ErrRequestError = func(err error) error {
 		return errors.New("http request error").
 			WithCode("HTTP_REQUEST_ERROR").
-			WithKind(errors.KindUnexpected).
-			WithRootError(err).
-			Retryable(true)
+			WithKind(errors.KindUnknown).
+			WithCause(err).
+			Retryable()
 	}
 
 	ErrBodyReadError = func(err error) error {
 		return errors.New("http request error").
 			WithCode("ERR_READ_HTTP_RESPONSE_BODY").
-			WithKind(errors.KindUnexpected).
-			WithRootError(err).
-			Retryable(false)
+			WithKind(errors.KindUnknown).
+			WithCause(err)
 	}
 
 	ErrUnexpectedStatusCode = func(code int) error {
 		kind := kindByStatusCode(code)
 		retry := retryByStatusCode[code]
 
-		return errors.New("unexpected http response status code").
+		err := errors.New("unexpected http response status code").
 			WithCode("ERR_UNEXPECTED_STATUS_CODE").
-			WithKind(kind).
-			Retryable(retry)
+			WithKind(kind)
+
+		if !retry {
+			return err
+		}
+
+		return err.Retryable()
 	}
 
 	ErrBodyCastError = func(err error) error {
 		return errors.New("could not cast http response body").
 			WithCode("ERR_HTTP_RESPONSE_BODY_CAST").
-			WithKind(errors.KindUnexpected).
-			WithRootError(err).
-			Retryable(false)
+			WithKind(errors.KindUnknown).
+			WithCause(err)
 	}
 )
 
@@ -72,7 +73,7 @@ func kindByStatusCode(code int) errors.KindType {
 	case http.StatusTooManyRequests:
 		return errors.KindResourceExhausted
 	default:
-		return errors.KindUnexpected
+		return errors.KindUnknown
 	}
 }
 

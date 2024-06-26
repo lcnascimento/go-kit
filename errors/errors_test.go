@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lcnascimento/go-kit/errors"
-	"github.com/lcnascimento/go-kit/runtime"
 )
 
 func TestNew(t *testing.T) {
@@ -28,7 +27,7 @@ func TestNew(t *testing.T) {
 		err := errors.New("mocked message")
 
 		t.Run("should have Kind unexpected", func(t *testing.T) {
-			assert.Equal(t, errors.KindUnexpected, errors.Kind(err))
+			assert.Equal(t, errors.KindUnknown, errors.Kind(err))
 		})
 
 		t.Run("should have Code unknown", func(t *testing.T) {
@@ -59,13 +58,6 @@ func TestNew(t *testing.T) {
 
 		assert.Equal(t, errors.CodeType("MOCKED_CODE_2"), errors.Code(err))
 	})
-
-	t.Run("should produce an error with a RootError attached", func(t *testing.T) {
-		rootErr := e.New("root error")
-		err := errors.New("mocked message").WithRootError(rootErr)
-
-		assert.Equal(t, rootErr.Error(), errors.RootError(err))
-	})
 }
 
 func TestNewMissingRequiredDependency(t *testing.T) {
@@ -84,7 +76,7 @@ func TestNewMissingRequiredDependency(t *testing.T) {
 	})
 
 	t.Run("should not be retryable", func(t *testing.T) {
-		assert.Equal(t, false, errors.Retryable(err))
+		assert.False(t, errors.IsRetryable(err))
 	})
 }
 
@@ -104,222 +96,237 @@ func TestNewValidationError(t *testing.T) {
 	})
 
 	t.Run("should not be retryable", func(t *testing.T) {
-		assert.Equal(t, false, errors.Retryable(err))
+		assert.False(t, errors.IsRetryable(err))
 	})
 }
 
 func TestKind(t *testing.T) {
-	tt := []struct {
-		name         string
-		err          error
-		expectedKind errors.KindType
-	}{
-		{
-			name:         "go native error",
-			err:          e.New("new error"),
-			expectedKind: errors.KindUnexpected,
-		},
-		{
-			name:         "custom error with default kind",
-			err:          errors.New("some message"),
-			expectedKind: errors.KindUnexpected,
-		},
-		{
-			name:         "custom error with non-default kind",
-			err:          errors.New("some message").WithKind("some kind"),
-			expectedKind: "some kind",
-		},
-	}
+	t.Run("go native error", func(t *testing.T) {
+		err := e.New("new error")
+		assert.Equal(t, errors.KindUnknown, errors.Kind(err))
+	})
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expectedKind, errors.Kind(tc.err))
-		})
-	}
+	t.Run("custom error with default kind", func(t *testing.T) {
+		err := errors.New("some message")
+		assert.Equal(t, errors.KindUnknown, errors.Kind(err))
+	})
+
+	t.Run("custom error with non default kind", func(t *testing.T) {
+		err := errors.New("some message").WithKind(errors.KindNotFound)
+		assert.Equal(t, errors.KindNotFound, errors.Kind(err))
+	})
+
+	t.Run("wrap custom error", func(t *testing.T) {
+		err := errors.New("some message").WithKind(errors.KindNotFound)
+		wrapped := fmt.Errorf("wrapped: %w", err)
+		assert.Equal(t, errors.KindNotFound, errors.Kind(wrapped))
+	})
+
+	t.Run("join native error with custom error", func(t *testing.T) {
+		native := e.New("native error")
+		custom := errors.New("custom error").WithKind(errors.KindNotFound)
+		wrapped := e.Join(native, custom)
+
+		assert.Equal(t, errors.KindNotFound, errors.Kind(wrapped))
+	})
+
+	t.Run("join two custom errors", func(t *testing.T) {
+		custom1 := errors.New("custom error 1")
+		custom2 := errors.New("custom error 2").WithKind(errors.KindNotFound)
+		wrapped := e.Join(custom1, custom2)
+
+		assert.Equal(t, errors.KindNotFound, errors.Kind(wrapped))
+	})
+
+	t.Run("custom error caused by other custom error", func(t *testing.T) {
+		custom1 := errors.New("custom error 1").WithKind(errors.KindNotFound)
+		custom2 := errors.New("custom error 2").WithCause(custom1)
+
+		assert.Equal(t, errors.KindNotFound, errors.Kind(custom2))
+	})
 }
 
 func TestCode(t *testing.T) {
-	tt := []struct {
-		name         string
-		err          error
-		expectedCode errors.CodeType
-	}{
-		{
-			name:         "go native error",
-			err:          e.New("new error"),
-			expectedCode: errors.CodeUnknown,
-		},
-		{
-			name:         "custom error with default code",
-			err:          errors.New("some message"),
-			expectedCode: errors.CodeUnknown,
-		},
-		{
-			name:         "custom error with non-default code",
-			err:          errors.New("some message").WithCode("some code"),
-			expectedCode: "some code",
-		},
-	}
+	t.Run("go native error", func(t *testing.T) {
+		err := e.New("new error")
+		assert.Equal(t, errors.CodeUnknown, errors.Code(err))
+	})
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expectedCode, errors.Code(tc.err))
-		})
-	}
+	t.Run("custom error with default code", func(t *testing.T) {
+		err := errors.New("some message")
+		assert.Equal(t, errors.CodeUnknown, errors.Code(err))
+	})
+
+	t.Run("custom error with non default code", func(t *testing.T) {
+		err := errors.New("some message").WithCode("SOME_CODE")
+		assert.Equal(t, errors.CodeType("SOME_CODE"), errors.Code(err))
+	})
+
+	t.Run("wrap custom error", func(t *testing.T) {
+		err := errors.New("some message").WithCode("SOME_CODE")
+		wrapped := fmt.Errorf("wrapped: %w", err)
+		assert.Equal(t, errors.CodeType("SOME_CODE"), errors.Code(wrapped))
+	})
+
+	t.Run("join native error with custom error", func(t *testing.T) {
+		native := e.New("native error")
+		custom := errors.New("some message").WithCode("SOME_CODE")
+		wrapped := e.Join(native, custom)
+
+		assert.Equal(t, errors.CodeType("SOME_CODE"), errors.Code(wrapped))
+	})
+
+	t.Run("join two custom errors", func(t *testing.T) {
+		custom1 := errors.New("custom error 1")
+		custom2 := errors.New("custom error 2").WithCode("SOME_CODE")
+		wrapped := e.Join(custom1, custom2)
+
+		assert.Equal(t, errors.CodeType("SOME_CODE"), errors.Code(wrapped))
+	})
+
+	t.Run("custom error caused by other custom error", func(t *testing.T) {
+		custom1 := errors.New("custom error 1").WithCode("SOME_CODE")
+		custom2 := errors.New("custom error 2").WithCause(custom1)
+
+		assert.Equal(t, errors.CodeType("SOME_CODE"), errors.Code(custom2))
+	})
 }
 
-func TestRootError(t *testing.T) {
-	tt := []struct {
-		name               string
-		err                error
-		expectedErrMsg     string
-		expectedRootErrMsg string
-	}{
-		{
-			name:               "go native error",
-			err:                errors.New("go native error"),
-			expectedErrMsg:     "go native error",
-			expectedRootErrMsg: "go native error",
-		},
-		{
-			name:               "custom error with attached root error",
-			err:                errors.New("custom error").WithRootError(e.New("root error")),
-			expectedErrMsg:     "custom error",
-			expectedRootErrMsg: "root error",
-		},
-		{
-			name:               "custom error without attached root error",
-			err:                errors.New("custom error"),
-			expectedErrMsg:     "custom error",
-			expectedRootErrMsg: "custom error",
-		},
-		{
-			name:               "chain of root errors",
-			err:                errors.New("head error").WithRootError(errors.New("middle error").WithRootError(errors.New("tail error"))),
-			expectedErrMsg:     "head error",
-			expectedRootErrMsg: "tail error",
-		},
-		{
-			name:               "nil error",
-			err:                nil,
-			expectedErrMsg:     "",
-			expectedRootErrMsg: "",
-		},
-		{
-			name:               "error without message and root error",
-			err:                errors.New(""),
-			expectedErrMsg:     "",
-			expectedRootErrMsg: "",
-		},
-		{
-			name:               "error without message but with root error",
-			err:                errors.New("").WithRootError(e.New("root error")),
-			expectedErrMsg:     "root error",
-			expectedRootErrMsg: "root error",
-		},
-	}
+func TestIsRetryable(t *testing.T) {
+	t.Run("go native error", func(t *testing.T) {
+		err := e.New("new error")
+		assert.False(t, errors.IsRetryable(err))
+	})
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			var err string
-			if tc.err != nil {
-				err = tc.err.Error()
-			}
+	t.Run("custom error with default retry mode", func(t *testing.T) {
+		err := errors.New("some message")
+		assert.False(t, errors.IsRetryable(err))
+	})
 
-			rootErr := errors.RootError(tc.err)
+	t.Run("custom error with retry mode", func(t *testing.T) {
+		err := errors.New("some message").Retryable()
+		assert.True(t, errors.IsRetryable(err))
+	})
 
-			t.Run("should produce right error message", func(t *testing.T) {
-				assert.Equal(t, tc.expectedErrMsg, err)
-			})
+	t.Run("wrap custom retryable error", func(t *testing.T) {
+		err := errors.New("some message").Retryable()
+		wrapped := fmt.Errorf("wrapped: %w", err)
+		assert.True(t, errors.IsRetryable(wrapped))
+	})
 
-			t.Run("should produce right root error message", func(t *testing.T) {
-				assert.Equal(t, tc.expectedRootErrMsg, rootErr)
-			})
-		})
-	}
-}
+	t.Run("join native error with custom retryable error", func(t *testing.T) {
+		native := e.New("native error")
+		custom := errors.New("some message").Retryable()
+		wrapped := e.Join(native, custom)
 
-func TestRetryable(t *testing.T) {
-	tt := []struct {
-		name     string
-		err      error
-		expected bool
-	}{
-		{
-			name:     "go native error",
-			err:      e.New("new error"),
-			expected: false,
-		},
-		{
-			name:     "custom error with default retry mode",
-			err:      errors.New("some message"),
-			expected: false,
-		},
-		{
-			name:     "custom error with non-default retry mode",
-			err:      errors.New("some message").Retryable(true),
-			expected: true,
-		},
-	}
+		assert.True(t, errors.IsRetryable(wrapped))
+	})
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, errors.Retryable(tc.err))
-		})
-	}
-}
+	t.Run("join two custom errors", func(t *testing.T) {
+		custom1 := errors.New("custom error 1")
+		custom2 := errors.New("custom error 2").Retryable()
+		wrapped := e.Join(custom1, custom2)
 
-func TestStack(t *testing.T) {
-	withStack := errors.New("some message").WithStack()
+		assert.True(t, errors.IsRetryable(wrapped))
+	})
 
-	tt := []struct {
-		name     string
-		err      error
-		expected []*runtime.StackFrame
-	}{
-		{
-			name:     "go native error",
-			err:      e.New("new error"),
-			expected: nil,
-		},
-		{
-			name:     "custom error without stack",
-			err:      errors.New("some message"),
-			expected: nil,
-		},
-		{
-			name:     "custom error with stack",
-			err:      withStack,
-			expected: errors.Stack(withStack),
-		},
-	}
+	t.Run("custom error caused by other custom retryable error", func(t *testing.T) {
+		custom1 := errors.New("custom error 1").Retryable()
+		custom2 := errors.New("custom error 2").WithCause(custom1)
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, errors.Stack(tc.err))
-		})
-	}
+		assert.True(t, errors.IsRetryable(custom2))
+	})
 }
 
 func TestIs(t *testing.T) {
-	t.Run("should see different custom errors", func(t *testing.T) {
+	t.Run("go native and custom error", func(t *testing.T) {
+		assert.False(t, errors.Is(errors.ErrResourceNotFound, e.New("go native")))
+	})
+
+	t.Run("different custom errors", func(t *testing.T) {
 		assert.False(t, errors.Is(errors.ErrNotImplemented, errors.ErrResourceNotFound))
 	})
 
-	t.Run("should see equal custom errors", func(t *testing.T) {
+	t.Run("custom errors with different internal errors", func(t *testing.T) {
+		custom1 := errors.New("custom error")
+		custom2 := errors.New("custom error").WithCause(fmt.Errorf("go native error"))
+
+		assert.False(t, errors.Is(custom1, custom2))
+	})
+
+	t.Run("equal custom errors", func(t *testing.T) {
 		assert.True(t, errors.Is(errors.ErrNotImplemented, errors.ErrNotImplemented))
 	})
 
-	t.Run("should see different native errors", func(t *testing.T) {
+	t.Run("different native errors", func(t *testing.T) {
 		err1 := fmt.Errorf("fake error 1")
 		err2 := fmt.Errorf("fake error 2")
 
 		assert.False(t, errors.Is(err1, err2))
 	})
 
-	t.Run("should see equal native errors", func(t *testing.T) {
+	t.Run("equal native errors", func(t *testing.T) {
 		err := fmt.Errorf("fake error")
 
 		assert.True(t, errors.Is(err, err))
+	})
+
+	t.Run("custom error caused by native error", func(t *testing.T) {
+		err := fmt.Errorf("fake error")
+		custom := errors.New("some error").WithCause(err)
+
+		assert.True(t, errors.Is(custom, err))
+	})
+}
+
+func TestAs(t *testing.T) {
+	t.Run("custom error", func(t *testing.T) {
+		var ce errors.CustomError
+
+		assert.True(t, errors.As(errors.ErrNotImplemented, &ce))
+		assert.Equal(t, errors.ErrNotImplemented, ce)
+	})
+}
+
+func TestWrap(t *testing.T) {
+	t.Run("go native error", func(t *testing.T) {
+		native := e.New("native error")
+		wrapped := errors.Wrap(native, "wrapped error")
+
+		expectedErrs := []error{
+			fmt.Errorf("wrapped error"),
+			native,
+		}
+
+		assert.Equal(t, "wrapped error\nnative error", wrapped.Error())
+		assert.Equal(t, expectedErrs, errors.Unwrap(wrapped))
+	})
+
+	t.Run("custom error", func(t *testing.T) {
+		custom := errors.New("custom error")
+		wrapped := errors.Wrap(custom, "wrapped error")
+
+		expectedErrs := []error{
+			fmt.Errorf("wrapped error"),
+			fmt.Errorf("custom error"),
+		}
+
+		assert.Equal(t, "wrapped error", wrapped.Error())
+		assert.Equal(t, expectedErrs, errors.Unwrap(wrapped))
+	})
+
+	t.Run("custom error with cause", func(t *testing.T) {
+		native := e.New("native error")
+		custom := errors.New("custom error").WithCause(native)
+		wrapped := errors.Wrap(custom, "wrapped error")
+
+		expectedErrs := []error{
+			fmt.Errorf("wrapped error"),
+			fmt.Errorf("custom error"),
+			native,
+		}
+
+		assert.Equal(t, "wrapped error", wrapped.Error())
+		assert.Equal(t, expectedErrs, errors.Unwrap(wrapped))
 	})
 }

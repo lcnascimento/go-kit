@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	e "errors"
 	"log/slog"
 	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/log"
 	"github.com/lcnascimento/go-kit/propagation"
 )
@@ -51,26 +49,4 @@ func main() {
 	log.Warn(ctx, "Warn", attrs...)
 	log.Errorw(ctx, "Error", attrs...)
 	log.Criticalw(ctx, "Critical", attrs...)
-
-	log.Error(ctx, errDefault.WithStack(), attrs...)
-	log.Critical(ctx, errCritical.WithStack(), attrs...)
-	log.Fatal(ctx, errFatal.WithStack(), attrs...)
 }
-
-var (
-	errDefault = errors.New("default error").
-			WithKind(errors.KindInvalidInput).
-			WithCode("ERR_INVALID_INPUT").
-			WithRootError(e.New("root default error"))
-
-	errCritical = errors.New("critical error").
-			WithKind(errors.KindUnexpected).
-			WithCode("ERR_CRITICAL").
-			WithRootError(e.New("root critical error")).
-			Retryable(true)
-
-	errFatal = errors.New("fatal error").
-			WithKind(errors.KindUnexpected).
-			WithCode("ERR_FATAL").
-			WithRootError(e.New("root fatal error"))
-)

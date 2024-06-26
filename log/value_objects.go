@@ -9,7 +9,6 @@ import (
 
 	"github.com/lcnascimento/go-kit/env"
 	"github.com/lcnascimento/go-kit/errors"
-	"github.com/lcnascimento/go-kit/runtime"
 )
 
 // Level is a wrapper around slog.Leveler.
@@ -39,14 +38,10 @@ var (
 		attrs := []any{
 			slog.String("code", string(errors.Code(err))),
 			slog.String("kind", string(errors.Kind(err))),
-			slog.Bool("retryable", errors.Retryable(err)),
+			slog.Bool("retryable", errors.IsRetryable(err)),
 		}
 
-		if root := errors.RootError(err); root != err.Error() {
-			attrs = append(attrs, slog.String("root", root))
-		}
-
-		if stack := errors.Stack(err); len(stack) > 0 {
+		if stack := errors.Unwrap(err); len(stack) > 0 {
 			attrs = append(attrs, slog.Any("stack", stackList(stack)))
 		}
 
@@ -139,11 +134,11 @@ func defaultReplaceAttr(_ []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-func stackList(stack []*runtime.StackFrame) []string {
+func stackList(stack []error) []string {
 	list := []string{}
 
-	for _, f := range stack {
-		list = append(list, f.String())
+	for _, e := range stack {
+		list = append(list, e.Error())
 	}
 
 	return list
