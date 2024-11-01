@@ -1,12 +1,13 @@
-go 1.22.2
+go 1.23.2
 
 use (
 	./env
 	./errors
+	./httpclient
 	./log
+	./metric
 	./propagation
 	./runtime
-	./httpclient
 	./trace
-	./metric
+	./util
 )

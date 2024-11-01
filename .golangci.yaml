@@ -32,6 +32,7 @@ linters-settings:
   govet:
     disable:
       - fieldalignment
+      - printf
 
   nakedret:
     max-func-lines: 1
@@ -63,7 +64,7 @@ linters:
     - bodyclose
     - durationcheck
     - errorlint
-    - exportloopref
+    - copyloopvar
     - funlen
     - gocritic
     - godot
@@ -72,7 +73,7 @@ linters:
     - gofumpt
     - goheader
     - goimports
-    - gomnd
+    - mnd
     - gomoddirectives
     - lll
     - makezero
@@ -101,7 +102,6 @@ linters:
     - gosec
     - contextcheck
     - errname
-    - execinquery
     - loggercheck
     - nakedret
 

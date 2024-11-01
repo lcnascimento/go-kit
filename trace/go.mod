@@ -1,6 +1,6 @@
 module github.com/lcnascimento/go-kit/trace
 
-go 1.22.2
+go 1.23.2
 
 require (
 	github.com/lcnascimento/go-kit/env v1.0.0

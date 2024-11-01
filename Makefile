@@ -13,7 +13,7 @@ setup: lint vuln-check
 .PHONY: lint
 lint:
 	@echo "===> Installing golangci-lint"
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.1
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 
 	@echo "===> Running Go Linter"
 	@go list -f '{{.Dir}}' -m | xargs $(GOPATH)/bin/golangci-lint run --timeout 10m
