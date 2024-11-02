@@ -21,7 +21,7 @@ mocks:
 		dir=$$(dirname $$file); \
 		rm -Rf "$$dir/mocks"; \
 		mkdir -p "$$dir/mocks"; \
-		$(GOPATH)/bin/mockgen -source=$$file -destination="$$dir/mocks/$$(basename $$file)" -package="$$(basename $$(dirname $$file))mocks"; \
+		$(GOPATH)/bin/mockgen -source=$$file -destination="$$dir/mocks/mocks.go" -package=mocks; \
 	done
 
 	@echo "==> Mock generation completed successfully"
