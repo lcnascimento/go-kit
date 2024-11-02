@@ -18,15 +18,14 @@ type httpClientProvider interface {
 	Do(request *http.Request) (*http.Response, error)
 }
 
-// Client provides methods for making REST requests.
-type Client struct {
+type client struct {
 	http    httpClientProvider
 	timeout time.Duration
 }
 
 // New creates a new Client instance.
-func New(opts ...Option) *Client {
-	client := &Client{
+func New(opts ...Option) HTTPClient {
+	c := &client{
 		http: &http.Client{
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
@@ -34,14 +33,14 @@ func New(opts ...Option) *Client {
 	}
 
 	for _, opt := range opts {
-		opt(client)
+		opt(c)
 	}
 
-	return client
+	return c
 }
 
 // Patch execute a http PATCH method with application/json headers.
-func (c *Client) Patch(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) Patch(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	if req.Headers == nil {
 		req.Headers = make(map[string]string)
 	}
@@ -52,7 +51,7 @@ func (c *Client) Patch(ctx context.Context, req *Request, opts ...RequestOption)
 }
 
 // Put execute a http PUT method with application/json headers.
-func (c *Client) Put(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) Put(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	if req.Headers == nil {
 		req.Headers = make(map[string]string)
 	}
@@ -63,7 +62,7 @@ func (c *Client) Put(ctx context.Context, req *Request, opts ...RequestOption) (
 }
 
 // Post execute a http POST method with application/json headers.
-func (c *Client) Post(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) Post(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	if req.Headers == nil {
 		req.Headers = make(map[string]string)
 	}
@@ -74,7 +73,7 @@ func (c *Client) Post(ctx context.Context, req *Request, opts ...RequestOption) 
 }
 
 // PostForm execute a http POST method with x-www-form-urlencoded headers.
-func (c *Client) PostForm(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) PostForm(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	if req.Headers == nil {
 		req.Headers = make(map[string]string)
 	}
@@ -85,7 +84,7 @@ func (c *Client) PostForm(ctx context.Context, req *Request, opts ...RequestOpti
 }
 
 // Delete execute a http DELETE method with application/json headers.
-func (c *Client) Delete(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) Delete(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	if req.Headers == nil {
 		req.Headers = make(map[string]string)
 	}
@@ -94,11 +93,11 @@ func (c *Client) Delete(ctx context.Context, req *Request, opts ...RequestOption
 }
 
 // Get execute a http GET method.
-func (c *Client) Get(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) Get(ctx context.Context, req *Request, opts ...RequestOption) (*Response, error) {
 	return c.processRequest(ctx, "GET", req, opts...)
 }
 
-func (c *Client) processRequest(ctx context.Context, method string, req *Request, opts ...RequestOption) (*Response, error) {
+func (c *client) processRequest(ctx context.Context, method string, req *Request, opts ...RequestOption) (*Response, error) {
 	for _, opt := range opts {
 		opt(req)
 	}
@@ -149,7 +148,7 @@ func (c *Client) processRequest(ctx context.Context, method string, req *Request
 	return response, nil
 }
 
-func (c *Client) buildURL(ctx context.Context, req *Request) (*URL.URL, error) {
+func (c *client) buildURL(ctx context.Context, req *Request) (*URL.URL, error) {
 	queryValues := URL.Values{}
 	for key, value := range req.QueryParams {
 		queryValues.Add(key, value)

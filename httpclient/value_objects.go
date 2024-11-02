@@ -5,11 +5,11 @@ import (
 )
 
 // Option is a type to set HTTP Client options.
-type Option func(*Client)
+type Option func(*client)
 
 // WithTimeout instructs the HTTP Client to cancel any requests that exceeds the given timeout.
 func WithTimeout(timeout time.Duration) Option {
-	return func(c *Client) {
+	return func(c *client) {
 		c.timeout = timeout
 	}
 }

@@ -54,7 +54,7 @@ func init() {
 	}
 }
 
-func (c *Client) onRequestStart(ctx context.Context, host, path, method string) trace.Span {
+func (c *client) onRequestStart(ctx context.Context, host, path, method string) trace.Span {
 	ctx, span := tracer.Start(ctx, method, trace.WithAttributes())
 
 	log.Debug(
@@ -68,7 +68,7 @@ func (c *Client) onRequestStart(ctx context.Context, host, path, method string) 
 	return span
 }
 
-func (c *Client) onRequestEnd(ctx context.Context, span trace.Span, host, path, method string, status int, start time.Time) {
+func (c *client) onRequestEnd(ctx context.Context, span trace.Span, host, path, method string, status int, start time.Time) {
 	latency := time.Since(start)
 
 	attrs := []attribute.KeyValue{
@@ -95,35 +95,35 @@ func (c *Client) onRequestEnd(ctx context.Context, span trace.Span, host, path, 
 	)
 }
 
-func (c *Client) onParseURLError(ctx context.Context, url string, err error) error {
+func (c *client) onParseURLError(ctx context.Context, url string, err error) error {
 	err = ErrParseURL(err)
 	log.Error(ctx, err, log.String("url", url))
 
 	return err
 }
 
-func (c *Client) onBuildRequestError(ctx context.Context, err error) error {
+func (c *client) onBuildRequestError(ctx context.Context, err error) error {
 	err = ErrBuildRequestError(err)
 	log.Error(ctx, err)
 
 	return err
 }
 
-func (c *Client) onRequestError(ctx context.Context, err error) error {
+func (c *client) onRequestError(ctx context.Context, err error) error {
 	err = ErrRequestError(err)
 	log.Error(ctx, err)
 
 	return err
 }
 
-func (c *Client) onBodyReadError(ctx context.Context, err error) error {
+func (c *client) onBodyReadError(ctx context.Context, err error) error {
 	err = ErrBodyReadError(err)
 	log.Error(ctx, err)
 
 	return err
 }
 
-func (c *Client) onUnexpectedStatusCode(ctx context.Context, code int, b []byte) error {
+func (c *client) onUnexpectedStatusCode(ctx context.Context, code int, b []byte) error {
 	var body map[string]any
 	_ = json.Unmarshal(b, &body)
 

@@ -1,7 +1,8 @@
 GOPATH=$(shell go env GOPATH)
+CONTRACTS=$(shell find . -name "contracts.go")
 
 .PHONY: setup
-setup: lint vuln-check
+setup: mocks lint vuln-check
 	@echo "===> Installing Node dev dependencies"
 	@npm install
 
@@ -9,6 +10,21 @@ setup: lint vuln-check
 	@npx husky install
 
 	@echo "===> Setup concluded"
+
+.PHONY: mocks
+mocks:
+	@echo "==> Installing mockgen"
+	@go install go.uber.org/mock/mockgen@v0.4.0
+
+	@echo "==> Generating mocks"
+	@for file in $(CONTRACTS); do \
+		dir=$$(dirname $$file); \
+		rm -Rf "$$dir/mocks"; \
+		mkdir -p "$$dir/mocks"; \
+		$(GOPATH)/bin/mockgen -source=$$file -destination="$$dir/mocks/$$(basename $$file)" -package=mocks; \
+	done
+
+	@echo "==> Mock generation completed successfully"
 
 .PHONY: lint
 lint:
