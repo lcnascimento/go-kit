@@ -41,15 +41,15 @@ func (m *MockServer) EXPECT() *MockServerMockRecorder {
 }
 
 // RegisterService mocks base method.
-func (m *MockServer) RegisterService(registration grpcserver.ServiceRegistration, svc any) {
+func (m *MockServer) RegisterService(registration grpcserver.ServiceRegistration) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterService", registration, svc)
+	m.ctrl.Call(m, "RegisterService", registration)
 }
 
 // RegisterService indicates an expected call of RegisterService.
-func (mr *MockServerMockRecorder) RegisterService(registration, svc any) *gomock.Call {
+func (mr *MockServerMockRecorder) RegisterService(registration any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterService", reflect.TypeOf((*MockServer)(nil).RegisterService), registration, svc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterService", reflect.TypeOf((*MockServer)(nil).RegisterService), registration)
 }
 
 // Start mocks base method.

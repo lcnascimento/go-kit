@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -16,8 +15,6 @@ import (
 const defaultPort = 3000
 
 type server struct {
-	mu *sync.Mutex
-
 	app  string
 	port int
 
@@ -28,19 +25,16 @@ type server struct {
 	listener net.Listener
 
 	serviceRegistrations []ServiceRegistration
-	services             []any
 }
 
 // NewServer creates a new gRPC server.
 func NewServer(appName string, opts ...Option) Server {
 	s := &server{
-		mu:                   &sync.Mutex{},
 		app:                  appName,
 		port:                 defaultPort,
 		unaryInterceptors:    []grpc.UnaryServerInterceptor{},
 		streamInterceptors:   []grpc.StreamServerInterceptor{},
 		serviceRegistrations: []ServiceRegistration{},
-		services:             []any{},
 	}
 
 	for _, opt := range opts {
@@ -51,12 +45,8 @@ func NewServer(appName string, opts ...Option) Server {
 }
 
 // RegisterService registers a service to the gRPC server.
-func (s *server) RegisterService(registration ServiceRegistration, svc any) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *server) RegisterService(registration ServiceRegistration) {
 	s.serviceRegistrations = append(s.serviceRegistrations, registration)
-	s.services = append(s.services, svc)
 }
 
 // Start starts the gRPC server.
@@ -78,9 +68,7 @@ func (s *server) Start(ctx context.Context) (err error) {
 
 	for i := range s.serviceRegistrations {
 		register := s.serviceRegistrations[i]
-		service := s.services[i]
-
-		register(s.server, service)
+		register(s.server)
 	}
 
 	go func() {

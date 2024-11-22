@@ -8,7 +8,7 @@ import (
 )
 
 // ServiceRegistration is a function that registers a service to the gRPC server.
-type ServiceRegistration func(grpc.ServiceRegistrar, any)
+type ServiceRegistration func(grpc.ServiceRegistrar)
 
 // Option is a function that configures the gRPC server.
 type Option func(*server)
