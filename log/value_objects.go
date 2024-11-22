@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"go.opentelemetry.io/otel/baggage"
+
 	"github.com/lcnascimento/go-kit/env"
 	"github.com/lcnascimento/go-kit/errors"
 )
@@ -33,7 +35,10 @@ var (
 	Float  = slog.Float64
 	Bool   = slog.Bool
 	Any    = slog.Any
+)
 
+// utility functions.
+var (
 	errorAttr = func(err error) slog.Attr {
 		attrs := []any{
 			slog.String("code", string(errors.Code(err))),
@@ -82,15 +87,16 @@ type handler struct {
 
 //nolint:gocritic // we actually must implement this contract.
 func (h handler) Handle(ctx context.Context, r slog.Record) error {
+	bag := baggage.FromContext(ctx)
+
 	attrs := []any{}
-	for k := range *contextKeys {
-		if value := ctx.Value(k); value != nil {
-			attrs = append(attrs, Any(string(k), value))
-		}
+
+	for _, member := range bag.Members() {
+		attrs = append(attrs, slog.String(member.Key(), member.Value()))
 	}
 
 	if len(attrs) > 0 {
-		r.AddAttrs(slog.Group("context", attrs...))
+		r.AddAttrs(slog.Group("baggage", attrs...))
 	}
 
 	return h.Handler.Handle(ctx, r)

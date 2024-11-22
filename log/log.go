@@ -8,14 +8,10 @@ import (
 
 	"github.com/go-slog/otelslog"
 
-	"github.com/lcnascimento/go-kit/propagation"
 	"github.com/lcnascimento/go-kit/runtime"
 )
 
-var (
-	logLevel    = &slog.LevelVar{}
-	contextKeys = &propagation.ContextKeySet{}
-)
+var logLevel = &slog.LevelVar{}
 
 func init() {
 	initLogLevel()
@@ -35,15 +31,6 @@ func init() {
 // SetLevel changes the level of the logger.
 func SetLevel(level slog.Level) {
 	logLevel.Set(level)
-}
-
-// SetContextKeySet changes the logger context key set.
-func SetContextKeySet(set propagation.ContextKeySet) {
-	if set == nil {
-		return
-	}
-
-	*contextKeys = set
 }
 
 // Debug logs debug data.
