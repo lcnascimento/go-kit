@@ -6,7 +6,6 @@ use (
 	./httpclient
 	./log
 	./metric
-	./propagation
 	./runtime
 	./trace
 	./util
