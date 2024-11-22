@@ -36,7 +36,6 @@ func getOTLPExporter() (trace.SpanExporter, error) {
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithReconnectionPeriod(time.Second * time.Duration(reconnectPeriod)),
 		otlptracegrpc.WithTimeout(time.Second * time.Duration(timeout)),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
 		otlptracegrpc.WithCompressor("gzip"),
 		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithDialOption(

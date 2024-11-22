@@ -35,7 +35,6 @@ func getOTLPExporter() (metric.Exporter, error) {
 		otlpmetricgrpc.WithEndpoint(endpoint),
 		otlpmetricgrpc.WithReconnectionPeriod(time.Second * time.Duration(reconnectPeriod)),
 		otlpmetricgrpc.WithTimeout(time.Second * time.Duration(timeout)),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
 		otlpmetricgrpc.WithCompressor("gzip"),
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithDialOption(

@@ -85,7 +85,7 @@ func (s *server) Start(ctx context.Context) (err error) {
 
 	go func() {
 		<-ctx.Done()
-		s.Stop(ctx)
+		_ = s.Stop(ctx)
 	}()
 
 	log.Info(ctx, "gRPC server started", log.Int("port", s.port))

@@ -21,16 +21,16 @@ func WithPort(port int) Option {
 }
 
 // WithUnaryInterceptor adds a unary interceptor to the gRPC server.
-func WithUnaryInterceptor(interceptor grpc.UnaryServerInterceptor) Option {
+func WithUnaryInterceptor(i grpc.UnaryServerInterceptor) Option {
 	return func(s *server) {
-		s.unaryInterceptors = append(s.unaryInterceptors, interceptor)
+		s.unaryInterceptors = append(s.unaryInterceptors, i)
 	}
 }
 
 // WithStreamInterceptor adds a stream interceptor to the gRPC server.
-func WithStreamInterceptor(interceptor grpc.StreamServerInterceptor) Option {
+func WithStreamInterceptor(i grpc.StreamServerInterceptor) Option {
 	return func(s *server) {
-		s.streamInterceptors = append(s.streamInterceptors, interceptor)
+		s.streamInterceptors = append(s.streamInterceptors, i)
 	}
 }
 
