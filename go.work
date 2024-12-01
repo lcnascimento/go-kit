@@ -10,4 +10,5 @@ use (
 	./runtime
 	./trace
 	./util
+	./validator
 )
