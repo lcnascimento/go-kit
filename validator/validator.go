@@ -29,7 +29,7 @@ func New(options ...Option) Validator {
 func (v *val) Validate(ctx context.Context, s any) error {
 	if err := v.validator.StructCtx(ctx, s); err != nil {
 		err = ErrInvalidStruct(err)
-		log.Error(ctx, err)
+		log.Error(ctx, err, log.Any("struct", s))
 		return err
 	}
 
