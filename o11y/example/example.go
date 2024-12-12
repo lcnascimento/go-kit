@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"log/slog"
-	"os"
-	"os/signal"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/baggage"
@@ -15,15 +12,14 @@ import (
 )
 
 var (
-	pkg    = "github.com/lcnascimento/go-kit/o11y/example"
+	pkg = "github.com/lcnascimento/go-kit/o11y/example"
+
 	tracer = otel.Tracer(pkg)
 	logger = log.NewLogger(pkg)
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
+	ctx := o11y.Context()
 	defer o11y.Shutdown(ctx)
 
 	foo, _ := baggage.NewMember("foo", "foo")
@@ -45,4 +41,6 @@ func main() {
 	logger.Warn(ctx, "WARN", attrs...)
 	logger.Error(ctx, errors.New("ERROR"), attrs...)
 	logger.Critical(ctx, errors.New("CRITICAL"), attrs...)
+
+	panic("PANIC")
 }

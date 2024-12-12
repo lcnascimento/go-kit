@@ -15,18 +15,27 @@ import (
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
+
+	iLog "github.com/lcnascimento/go-kit/o11y/log"
+	"github.com/lcnascimento/go-kit/runtime"
 )
 
 var (
+	pkg = "github.com/lcnascimento/go-kit/o11y"
+
+	ctx context.Context
+
 	tracerProvider *trace.TracerProvider
 	meterProvider  *metric.MeterProvider
 	loggerProvider *log.LoggerProvider
+
+	logger *iLog.Logger
 )
 
 func init() {
 	var err error
 
-	ctx := context.Background()
+	ctx = runtime.ContextWithOSSignalCancellation()
 
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
@@ -48,10 +57,21 @@ func init() {
 		panic(err)
 	}
 	global.SetLoggerProvider(loggerProvider)
+
+	logger = iLog.NewLogger(pkg)
+}
+
+// Context returns the o11y context with OS signal cancellation.
+func Context() context.Context {
+	return ctx
 }
 
 // Shutdown shuts down the OpenTelemetry providers.
 func Shutdown(ctx context.Context) {
+	if e := recover(); e != nil {
+		logger.Criticalw(ctx, "panic", iLog.Any("exception", e))
+	}
+
 	if tracerProvider != nil {
 		_ = tracerProvider.Shutdown(ctx)
 	}
