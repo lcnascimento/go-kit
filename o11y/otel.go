@@ -2,6 +2,7 @@ package o11y
 
 import (
 	"context"
+	"log/slog"
 	"os"
 
 	"go.opentelemetry.io/otel"
@@ -59,6 +60,7 @@ func init() {
 	global.SetLoggerProvider(loggerProvider)
 
 	logger = iLog.NewLogger(pkg)
+	slog.SetDefault(slog.New(iLog.NewHandler(pkg)))
 }
 
 // Context returns the o11y context with OS signal cancellation.

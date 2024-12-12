@@ -36,6 +36,11 @@ func main() {
 		slog.String("yay", "keke"),
 	}
 
+	slog.DebugContext(ctx, "SLOG DEBUG")
+	slog.InfoContext(ctx, "SLOG INFO")
+	slog.WarnContext(ctx, "SLOG WARN")
+	slog.ErrorContext(ctx, "SLOG ERROR")
+
 	logger.Debug(ctx, "DEBUG", attrs...)
 	logger.Info(ctx, "INFO", attrs...)
 	logger.Warn(ctx, "WARN", attrs...)
