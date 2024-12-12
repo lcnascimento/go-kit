@@ -21,6 +21,7 @@ var (
 // Level is a wrapper around slog.Leveler.
 // It adds some extra Levels, like Critical.
 const (
+	LevelTrace    = slog.Level(-8)
 	LevelDebug    = slog.LevelDebug
 	LevelInfo     = slog.LevelInfo
 	LevelWarn     = slog.LevelWarn
@@ -30,6 +31,7 @@ const (
 )
 
 var levelNames = map[slog.Leveler]string{
+	LevelTrace:    "TRACE",
 	LevelDebug:    "DEBUG",
 	LevelInfo:     "INFO",
 	LevelWarn:     "WARN",
@@ -39,6 +41,7 @@ var levelNames = map[slog.Leveler]string{
 }
 
 var levelByName = map[string]slog.Level{
+	"TRACE":    LevelTrace,
 	"DEBUG":    LevelDebug,
 	"INFO":     LevelInfo,
 	"WARN":     LevelWarn,

@@ -24,6 +24,11 @@ type handler struct {
 
 // Enabled returns true if the handler is enabled for the given level.
 func (h *handler) Enabled(ctx context.Context, level slog.Level) bool {
+	level, ok := levelByName[strings.ToUpper(level.String())]
+	if !ok {
+		level = LevelDebug
+	}
+
 	return level >= h.level
 }
 

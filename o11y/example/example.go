@@ -41,6 +41,7 @@ func main() {
 	slog.WarnContext(ctx, "SLOG WARN")
 	slog.ErrorContext(ctx, "SLOG ERROR")
 
+	logger.Trace(ctx, "TRACE", attrs...)
 	logger.Debug(ctx, "DEBUG", attrs...)
 	logger.Info(ctx, "INFO", attrs...)
 	logger.Warn(ctx, "WARN", attrs...)
