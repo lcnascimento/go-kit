@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 	r "runtime"
-	"strings"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 
@@ -21,18 +19,8 @@ type Logger struct {
 
 // NewLogger creates a new Logger.
 func NewLogger(pkg string) *Logger {
-	name := "INFO"
-	if l := os.Getenv("LOG_LEVEL"); l != "" {
-		name = l
-	}
-
-	level := levelByName[strings.ToUpper(name)]
-	if level == 0 {
-		level = LevelInfo
-	}
-
 	return &Logger{
-		level:  level,
+		level:  getLevel(),
 		logger: otelslog.NewLogger(pkg),
 	}
 }
