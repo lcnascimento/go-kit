@@ -7,15 +7,20 @@ import (
 	"os"
 
 	"github.com/lcnascimento/go-kit/httpclient"
-	"github.com/lcnascimento/go-kit/log"
+	"github.com/lcnascimento/go-kit/o11y/log"
 )
+
+var logger *log.Logger
+
+func init() {
+	logger = log.NewLogger("github.com/lcnascimento/go-kit/httpclient/example")
+}
 
 func main() {
 	defer os.Exit(0)
 
 	ctx := context.Background()
 
-	log.SetLevel(log.LevelDebug)
 	client := httpclient.New()
 
 	req := &httpclient.Request{
@@ -35,9 +40,9 @@ func main() {
 
 	var body map[string]any
 	if err := json.Unmarshal(res.Body, &body); err != nil {
-		log.Fatal(ctx, err)
+		logger.Fatal(ctx, err)
 		return
 	}
 
-	log.Info(ctx, "temperature fetched", log.Any("data", body))
+	logger.Info(ctx, "temperature fetched", log.Any("data", body))
 }

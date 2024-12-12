@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/go-playground/validator/v10"
-
-	"github.com/lcnascimento/go-kit/log"
 )
 
 type val struct {
@@ -28,9 +26,7 @@ func New(options ...Option) Validator {
 // Validate validates a struct given validate annotations.
 func (v *val) Validate(ctx context.Context, s any) error {
 	if err := v.validator.StructCtx(ctx, s); err != nil {
-		err = ErrInvalidStruct(err)
-		log.Error(ctx, err, log.Any("struct", s))
-		return err
+		return onInvalidStruct(ctx, s, err)
 	}
 
 	return nil

@@ -5,11 +5,8 @@ use (
 	./errors
 	./grpcserver
 	./httpclient
-	./log
-	./metric
 	./o11y
 	./runtime
-	./trace
 	./util
 	./validator
 )

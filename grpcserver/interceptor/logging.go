@@ -11,9 +11,16 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	"github.com/lcnascimento/go-kit/errors"
-	"github.com/lcnascimento/go-kit/log"
+	"github.com/lcnascimento/go-kit/o11y/log"
 )
+
+const pkg = "github.com/lcnascimento/go-kit/grpcserver/interceptor"
+
+var logger *log.Logger
+
+func init() {
+	logger = log.NewLogger(pkg)
+}
 
 const (
 	// GRPCResponseLatencyKey is the amount of time needed to produce a response to a request.
@@ -47,11 +54,7 @@ func LoggingUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		}
 
 		msg := fmt.Sprintf("[RPC] %s", info.FullMethod)
-		if err != nil {
-			log.Error(ctx, errors.New(msg).WithCause(err), attrs...)
-		} else {
-			log.Info(ctx, msg, attrs...)
-		}
+		logger.Info(ctx, msg, attrs...)
 
 		return resp, err
 	}
@@ -86,11 +89,7 @@ func LoggingStreamServerInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		msg := fmt.Sprintf("[RPC] %s", info.FullMethod)
-		if err != nil {
-			log.Error(ctx, errors.New(msg).WithCause(err), attrs...)
-		} else {
-			log.Info(ctx, msg, attrs...)
-		}
+		logger.Info(ctx, msg, attrs...)
 
 		return nil
 	}

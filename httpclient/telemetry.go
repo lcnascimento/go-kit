@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/lcnascimento/go-kit/log"
+	"github.com/lcnascimento/go-kit/o11y/log"
 )
 
 const (
@@ -22,6 +22,7 @@ const (
 )
 
 var (
+	logger          *log.Logger
 	tracer          trace.Tracer
 	requestsCounter metric.Int64Counter
 	requestsLatency metric.Int64Histogram
@@ -32,6 +33,7 @@ func init() {
 
 	var err error
 
+	logger = log.NewLogger(pkg)
 	tracer = otel.Tracer(pkg)
 	meter := otel.Meter(pkg)
 
@@ -41,7 +43,7 @@ func init() {
 		metric.WithUnit("1"),
 	)
 	if err != nil {
-		log.Fatal(ctx, err)
+		logger.Fatal(ctx, err)
 	}
 
 	requestsLatency, err = meter.Int64Histogram(
@@ -50,14 +52,14 @@ func init() {
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
-		log.Fatal(ctx, err)
+		logger.Fatal(ctx, err)
 	}
 }
 
 func (c *client) onRequestStart(ctx context.Context, host, path, method string) trace.Span {
 	ctx, span := tracer.Start(ctx, method, trace.WithAttributes())
 
-	log.Debug(
+	logger.Debug(
 		ctx,
 		"http request started",
 		log.String("host", host),
@@ -84,7 +86,7 @@ func (c *client) onRequestEnd(ctx context.Context, span trace.Span, host, path, 
 	requestsCounter.Add(ctx, 1, mOption)
 	requestsLatency.Record(ctx, latency.Milliseconds(), mOption)
 
-	log.Debug(
+	logger.Debug(
 		ctx,
 		"http request completed",
 		log.String("host", host),
@@ -97,28 +99,28 @@ func (c *client) onRequestEnd(ctx context.Context, span trace.Span, host, path, 
 
 func (c *client) onParseURLError(ctx context.Context, url string, err error) error {
 	err = ErrParseURL(err)
-	log.Error(ctx, err, log.String("url", url))
+	logger.Error(ctx, err, log.String("url", url))
 
 	return err
 }
 
 func (c *client) onBuildRequestError(ctx context.Context, err error) error {
 	err = ErrBuildRequestError(err)
-	log.Error(ctx, err)
+	logger.Error(ctx, err)
 
 	return err
 }
 
 func (c *client) onRequestError(ctx context.Context, err error) error {
 	err = ErrRequestError(err)
-	log.Error(ctx, err)
+	logger.Error(ctx, err)
 
 	return err
 }
 
 func (c *client) onBodyReadError(ctx context.Context, err error) error {
 	err = ErrBodyReadError(err)
-	log.Error(ctx, err)
+	logger.Error(ctx, err)
 
 	return err
 }
@@ -137,9 +139,9 @@ func (c *client) onUnexpectedStatusCode(ctx context.Context, code int, b []byte)
 	err := ErrUnexpectedStatusCode(code)
 
 	if code < http.StatusInternalServerError {
-		log.Warn(ctx, err.Error(), attrs...)
+		logger.Warn(ctx, err.Error(), attrs...)
 	} else {
-		log.Error(ctx, err, attrs...)
+		logger.Error(ctx, err, attrs...)
 	}
 
 	return err

@@ -8,8 +8,6 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-
-	"github.com/lcnascimento/go-kit/log"
 )
 
 const defaultPort = 3000
@@ -53,8 +51,7 @@ func (s *server) RegisterService(registration ServiceRegistration) {
 func (s *server) Start(ctx context.Context) (err error) {
 	s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
-		err = ErrCreateListener.WithCause(err)
-		log.Error(ctx, err)
+		onCreateListenerError(ctx, err)
 		return err
 	}
 
@@ -76,7 +73,8 @@ func (s *server) Start(ctx context.Context) (err error) {
 		_ = s.Stop(ctx)
 	}()
 
-	log.Info(ctx, "gRPC server started", log.Int("port", s.port))
+	onStart(ctx, s.port)
+
 	return s.server.Serve(s.listener)
 }
 
@@ -86,7 +84,7 @@ func (s *server) Stop(ctx context.Context) error {
 		return ErrServerNotStarted
 	}
 
-	log.Info(ctx, "stopping gRPC server")
+	onStop(ctx)
 
 	s.server.GracefulStop()
 	return s.listener.Close()
