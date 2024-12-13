@@ -69,11 +69,10 @@ func (s *server) Start(ctx context.Context) (err error) {
 	}
 
 	done := make(chan error)
-	defer close(done)
-
 	go func() {
 		onStart(ctx, s.port)
 		done <- s.server.Serve(s.listener)
+		close(done)
 	}()
 
 	select {
