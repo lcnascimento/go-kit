@@ -72,16 +72,16 @@ func (s *server) Start(ctx context.Context) (err error) {
 	defer close(done)
 
 	go func() {
-		<-ctx.Done()
-		done <- nil
-	}()
-
-	go func() {
 		onStart(ctx, s.port)
 		done <- s.server.Serve(s.listener)
 	}()
 
-	return <-done
+	select {
+	case <-ctx.Done():
+	case err = <-done:
+	}
+
+	return err
 }
 
 // Stop stops the gRPC server.
