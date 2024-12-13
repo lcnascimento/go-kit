@@ -68,14 +68,20 @@ func (s *server) Start(ctx context.Context) (err error) {
 		register(s.server)
 	}
 
+	done := make(chan error)
+	defer close(done)
+
 	go func() {
 		<-ctx.Done()
-		_ = s.Stop(ctx)
+		done <- nil
 	}()
 
-	onStart(ctx, s.port)
+	go func() {
+		onStart(ctx, s.port)
+		done <- s.server.Serve(s.listener)
+	}()
 
-	return s.server.Serve(s.listener)
+	return <-done
 }
 
 // Stop stops the gRPC server.
