@@ -35,10 +35,10 @@ type BrokerCQRS interface {
 	Running(ctx context.Context) chan struct{}
 
 	// AddCommandHandlers adds command handlers to the command processor.
-	AddCommandHandlers(handlers ...cqrs.CommandHandler)
+	AddCommandHandlers(ctx context.Context, handlers ...cqrs.CommandHandler) error
 
 	// AddEventHandlers adds event handlers to the event processor.
-	AddEventHandlers(handlers ...cqrs.EventHandler)
+	AddEventHandlers(ctx context.Context, handlers ...cqrs.EventHandler) error
 
 	// SendCommand sends a command to the command bus.
 	SendCommand(ctx context.Context, command any) error

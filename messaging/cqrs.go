@@ -8,6 +8,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
+
+	"github.com/lcnascimento/go-kit/o11y"
 )
 
 type brokerCQRS struct {
@@ -19,13 +21,12 @@ type brokerCQRS struct {
 	commandBus       *cqrs.CommandBus
 	eventProcessor   *cqrs.EventProcessor
 	eventBus         *cqrs.EventBus
-
-	commandHandlers []cqrs.CommandHandler
-	eventHandlers   []cqrs.EventHandler
 }
 
 // NewBrokerCQRS creates a new BrokerCQRS instance.
-func NewBrokerCQRS(opts ...Option) BrokerCQRS {
+func NewBrokerCQRS(opts ...Option) (BrokerCQRS, error) {
+	ctx := o11y.Context()
+
 	broker := &brokerCQRS{
 		logger:    watermill.NewSlogLogger(nil),
 		marshaler: cqrs.JSONMarshaler{},
@@ -40,40 +41,32 @@ func NewBrokerCQRS(opts ...Option) BrokerCQRS {
 		broker.logger,
 	)
 
-	return broker
+	if err := broker.buildRouter(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := broker.buildCommandBus(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := broker.buildCommandProcessor(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := broker.buildEventBus(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := broker.buildEventProcessor(ctx); err != nil {
+		return nil, err
+	}
+
+	return broker, nil
 }
 
 // Start starts the broker.
 // All Command and Event handlers must be added before calling this method.
 func (b *brokerCQRS) Start(ctx context.Context) (err error) {
-	if err := b.buildRouter(ctx); err != nil {
-		return err
-	}
-
-	if err := b.buildCommandBus(ctx); err != nil {
-		return err
-	}
-
-	if err := b.buildCommandProcessor(ctx); err != nil {
-		return err
-	}
-
-	if err := b.buildEventBus(ctx); err != nil {
-		return err
-	}
-
-	if err := b.buildEventProcessor(ctx); err != nil {
-		return err
-	}
-
-	if err := b.commandProcessor.AddHandlers(b.commandHandlers...); err != nil {
-		return b.onAddCommandHandlersError(ctx, err)
-	}
-
-	if err := b.eventProcessor.AddHandlers(b.eventHandlers...); err != nil {
-		return b.onAddEventHandlersError(ctx, err)
-	}
-
 	b.onStart(ctx)
 	return b.router.Run(ctx)
 }
@@ -106,13 +99,21 @@ func (b *brokerCQRS) Running(ctx context.Context) chan struct{} {
 }
 
 // AddCommandHandlers adds command handlers to the command processor.
-func (b *brokerCQRS) AddCommandHandlers(handlers ...cqrs.CommandHandler) {
-	b.commandHandlers = append(b.commandHandlers, handlers...)
+func (b *brokerCQRS) AddCommandHandlers(ctx context.Context, handlers ...cqrs.CommandHandler) error {
+	if err := b.commandProcessor.AddHandlers(handlers...); err != nil {
+		return b.onAddCommandHandlersError(ctx, err)
+	}
+
+	return nil
 }
 
 // AddEventHandlers adds event handlers to the event processor.
-func (b *brokerCQRS) AddEventHandlers(handlers ...cqrs.EventHandler) {
-	b.eventHandlers = append(b.eventHandlers, handlers...)
+func (b *brokerCQRS) AddEventHandlers(ctx context.Context, handlers ...cqrs.EventHandler) error {
+	if err := b.eventProcessor.AddHandlers(handlers...); err != nil {
+		return b.onAddEventHandlersError(ctx, err)
+	}
+
+	return nil
 }
 
 // SendCommand sends a command to the command bus.
