@@ -5,6 +5,7 @@ use (
 	./errors
 	./grpcserver
 	./httpclient
+	./messaging
 	./o11y
 	./runtime
 	./util
