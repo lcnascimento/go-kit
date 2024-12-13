@@ -84,13 +84,20 @@ func (b *brokerCQRS) Stop(ctx context.Context) error {
 	return b.router.Close()
 }
 
-// Running returns true if the broker is running.
+// Running is closed when broker is running.
+// In other words: you can wait till broker is running using
+//
+//	fmt.Println("Starting broker")
+//	go r.Run(ctx)
+//	<- r.Running()
+//	fmt.Println("Broker is running")
+//
+// Warning: for historical reasons, this channel is not aware of broker closing.
+// The channel will be closed if the broker has been running and closed.
 func (b *brokerCQRS) Running(ctx context.Context) chan struct{} {
 	out := make(chan struct{})
 	go func() {
-		s := <-b.router.Running()
-		out <- s
-
+		<-b.router.Running()
 		b.onRunning(ctx)
 		close(out)
 	}()
