@@ -19,6 +19,9 @@ type brokerCQRS struct {
 	commandBus       *cqrs.CommandBus
 	eventProcessor   *cqrs.EventProcessor
 	eventBus         *cqrs.EventBus
+
+	commandHandlers []cqrs.CommandHandler
+	eventHandlers   []cqrs.EventHandler
 }
 
 // NewBrokerCQRS creates a new BrokerCQRS instance.
@@ -41,6 +44,7 @@ func NewBrokerCQRS(opts ...Option) BrokerCQRS {
 }
 
 // Start starts the broker.
+// All Command and Event handlers must be added before calling this method.
 func (b *brokerCQRS) Start(ctx context.Context) (err error) {
 	if err := b.buildRouter(ctx); err != nil {
 		return err
@@ -60,6 +64,14 @@ func (b *brokerCQRS) Start(ctx context.Context) (err error) {
 
 	if err := b.buildEventProcessor(ctx); err != nil {
 		return err
+	}
+
+	if err := b.commandProcessor.AddHandlers(b.commandHandlers...); err != nil {
+		return b.onAddCommandHandlersError(ctx, err)
+	}
+
+	if err := b.eventProcessor.AddHandlers(b.eventHandlers...); err != nil {
+		return b.onAddEventHandlersError(ctx, err)
 	}
 
 	b.onStart(ctx)
@@ -87,21 +99,13 @@ func (b *brokerCQRS) Running(ctx context.Context) chan struct{} {
 }
 
 // AddCommandHandlers adds command handlers to the command processor.
-func (b *brokerCQRS) AddCommandHandlers(ctx context.Context, handlers ...cqrs.CommandHandler) error {
-	if err := b.commandProcessor.AddHandlers(handlers...); err != nil {
-		return b.onAddCommandHandlersError(ctx, err)
-	}
-
-	return nil
+func (b *brokerCQRS) AddCommandHandlers(handlers ...cqrs.CommandHandler) {
+	b.commandHandlers = append(b.commandHandlers, handlers...)
 }
 
 // AddEventHandlers adds event handlers to the event processor.
-func (b *brokerCQRS) AddEventHandlers(ctx context.Context, handlers ...cqrs.EventHandler) error {
-	if err := b.eventProcessor.AddHandlers(handlers...); err != nil {
-		return b.onAddEventHandlersError(ctx, err)
-	}
-
-	return nil
+func (b *brokerCQRS) AddEventHandlers(handlers ...cqrs.EventHandler) {
+	b.eventHandlers = append(b.eventHandlers, handlers...)
 }
 
 // SendCommand sends a command to the command bus.

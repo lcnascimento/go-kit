@@ -16,6 +16,7 @@ type PubSub interface {
 // BrokerCQRS is a contract for a message broker that implements the CQRS pattern.
 type BrokerCQRS interface {
 	// Start starts the broker.
+	// All Command and Event handlers must be added before calling this method.
 	Start(ctx context.Context) error
 
 	// Stop stops the broker.
@@ -34,10 +35,10 @@ type BrokerCQRS interface {
 	Running(ctx context.Context) chan struct{}
 
 	// AddCommandHandlers adds command handlers to the command processor.
-	AddCommandHandlers(ctx context.Context, handlers ...cqrs.CommandHandler) error
+	AddCommandHandlers(handlers ...cqrs.CommandHandler)
 
 	// AddEventHandlers adds event handlers to the event processor.
-	AddEventHandlers(ctx context.Context, handlers ...cqrs.EventHandler) error
+	AddEventHandlers(handlers ...cqrs.EventHandler)
 
 	// SendCommand sends a command to the command bus.
 	SendCommand(ctx context.Context, command any) error

@@ -113,41 +113,35 @@ func (m *MockBrokerCQRS) EXPECT() *MockBrokerCQRSMockRecorder {
 }
 
 // AddCommandHandlers mocks base method.
-func (m *MockBrokerCQRS) AddCommandHandlers(ctx context.Context, handlers ...cqrs.CommandHandler) error {
+func (m *MockBrokerCQRS) AddCommandHandlers(handlers ...cqrs.CommandHandler) {
 	m.ctrl.T.Helper()
-	varargs := []any{ctx}
+	varargs := []any{}
 	for _, a := range handlers {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "AddCommandHandlers", varargs...)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "AddCommandHandlers", varargs...)
 }
 
 // AddCommandHandlers indicates an expected call of AddCommandHandlers.
-func (mr *MockBrokerCQRSMockRecorder) AddCommandHandlers(ctx any, handlers ...any) *gomock.Call {
+func (mr *MockBrokerCQRSMockRecorder) AddCommandHandlers(handlers ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{ctx}, handlers...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommandHandlers", reflect.TypeOf((*MockBrokerCQRS)(nil).AddCommandHandlers), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCommandHandlers", reflect.TypeOf((*MockBrokerCQRS)(nil).AddCommandHandlers), handlers...)
 }
 
 // AddEventHandlers mocks base method.
-func (m *MockBrokerCQRS) AddEventHandlers(ctx context.Context, handlers ...cqrs.EventHandler) error {
+func (m *MockBrokerCQRS) AddEventHandlers(handlers ...cqrs.EventHandler) {
 	m.ctrl.T.Helper()
-	varargs := []any{ctx}
+	varargs := []any{}
 	for _, a := range handlers {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "AddEventHandlers", varargs...)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "AddEventHandlers", varargs...)
 }
 
 // AddEventHandlers indicates an expected call of AddEventHandlers.
-func (mr *MockBrokerCQRSMockRecorder) AddEventHandlers(ctx any, handlers ...any) *gomock.Call {
+func (mr *MockBrokerCQRSMockRecorder) AddEventHandlers(handlers ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{ctx}, handlers...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEventHandlers", reflect.TypeOf((*MockBrokerCQRS)(nil).AddEventHandlers), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEventHandlers", reflect.TypeOf((*MockBrokerCQRS)(nil).AddEventHandlers), handlers...)
 }
 
 // Running mocks base method.
