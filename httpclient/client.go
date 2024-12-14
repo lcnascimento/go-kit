@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	mNoop "go.opentelemetry.io/otel/metric/noop"
+	tNoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 const defaultTimeoutInSeconds = 30
@@ -27,7 +29,11 @@ type client struct {
 func New(opts ...Option) HTTPClient {
 	c := &client{
 		http: &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport),
+			Transport: otelhttp.NewTransport(
+				http.DefaultTransport,
+				otelhttp.WithTracerProvider(tNoop.NewTracerProvider()),
+				otelhttp.WithMeterProvider(mNoop.NewMeterProvider()),
+			),
 		},
 		timeout: time.Second * defaultTimeoutInSeconds,
 	}

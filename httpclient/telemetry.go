@@ -57,7 +57,7 @@ func init() {
 }
 
 func (c *client) onRequestStart(ctx context.Context, host, path, method string) trace.Span {
-	ctx, span := tracer.Start(ctx, method, trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "HTTP "+method)
 
 	logger.Debug(
 		ctx,
@@ -81,6 +81,7 @@ func (c *client) onRequestEnd(ctx context.Context, span trace.Span, host, path, 
 	}
 
 	span.SetAttributes(attrs...)
+	span.End()
 
 	mOption := metric.WithAttributeSet(attribute.NewSet(attrs...))
 	requestsCounter.Add(ctx, 1, mOption)
