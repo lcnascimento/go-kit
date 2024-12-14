@@ -12,7 +12,8 @@ import (
 	"github.com/lcnascimento/go-kit/o11y/log"
 )
 
-const baggageFieldPrefix = "baggage."
+// BaggageFieldPrefix is the prefix for baggage fields.
+const BaggageFieldPrefix = "baggage."
 
 // WatermillLogger is a logger adapter for the Watermill library.
 type WatermillLogger struct {
@@ -64,12 +65,12 @@ func (l *WatermillLogger) buildContextAndAttrs(fields watermill.LogFields) (cont
 
 	attrs := make([]slog.Attr, 0, len(fields))
 	for k, v := range fields {
-		if !strings.HasPrefix(k, baggageFieldPrefix) {
+		if !strings.HasPrefix(k, BaggageFieldPrefix) {
 			attrs = append(attrs, log.Any(k, v))
 			continue
 		}
 
-		member, err := baggage.NewMember(strings.TrimPrefix(k, baggageFieldPrefix), fmt.Sprintf("%v", v))
+		member, err := baggage.NewMember(strings.TrimPrefix(k, BaggageFieldPrefix), fmt.Sprintf("%v", v))
 		if err != nil {
 			_ = l.onCreateBaggageMemberError(ctx, err)
 			continue

@@ -1,12 +1,14 @@
 package main
 
 import (
-	"context"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/baggage"
 
-	"github.com/lcnascimento/go-kit/messaging"
+	"github.com/lcnascimento/go-kit/messaging/cqrs"
+	"github.com/lcnascimento/go-kit/messaging/example/command"
+	"github.com/lcnascimento/go-kit/messaging/example/event"
 	"github.com/lcnascimento/go-kit/o11y"
 	"github.com/lcnascimento/go-kit/o11y/log"
 )
@@ -16,26 +18,6 @@ var (
 	logger = log.NewLogger(pkg)
 	tracer = otel.Tracer(pkg)
 )
-
-type event struct {
-	Message string `json:"message"`
-}
-
-type eventHandler struct{}
-
-func (h *eventHandler) HandlerName() string {
-	return "example"
-}
-
-func (h *eventHandler) NewEvent() any {
-	return &event{}
-}
-
-func (h *eventHandler) Handle(ctx context.Context, e any) error {
-	event, _ := e.(*event)
-	logger.Info(ctx, event.Message)
-	return nil
-}
 
 func main() {
 	defer o11y.Shutdown()
@@ -51,22 +33,25 @@ func main() {
 
 	ctx = baggage.ContextWithBaggage(ctx, bag)
 
-	broker, err := messaging.NewBrokerCQRS()
+	broker, err := cqrs.NewBroker()
 	if err != nil {
 		return
 	}
 
 	go func() {
-		broker.AddEventHandlers(ctx, &eventHandler{})
+		broker.AddCommandHandlers(ctx, &command.CommandLogMessageHandler{Broker: broker, Logger: logger})
+		broker.AddEventHandlers(ctx, &event.EventMessageLoggedHandler{Logger: logger})
 		broker.Start(ctx)
 	}()
 
 	<-broker.Running(ctx)
 
-	if err := broker.SendEvent(ctx, &event{Message: "Hello, World!"}); err != nil {
+	if err := broker.SendCommand(ctx, &command.CommandLogMessage{Message: "Hello, World!"}); err != nil {
 		return
 	}
-	logger.Info(ctx, "event sent")
+	logger.Info(ctx, "command sent")
+
+	time.Sleep(1 * time.Second)
 
 	broker.Stop(ctx)
 }

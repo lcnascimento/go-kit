@@ -1,6 +1,12 @@
 package messaging
 
-import "context"
+import (
+	"context"
+
+	"github.com/lcnascimento/go-kit/o11y/log"
+)
+
+var logger = log.NewLogger("github.com/lcnascimento/go-kit/messaging")
 
 func (l *WatermillLogger) onCreateBaggageError(ctx context.Context, err error) error {
 	err = ErrCreateBaggage.WithCause(err)
