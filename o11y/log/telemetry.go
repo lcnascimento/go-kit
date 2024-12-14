@@ -6,6 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
@@ -38,10 +39,18 @@ func onError(ctx context.Context, level slog.Level, err error) error {
 		attribute.Bool("retryable", errors.IsRetryable(err)),
 	}
 
+	errorsCounter.Add(ctx, 1, metric.WithAttributes(kvs...))
+	errorsCounter.Add(ctx, 1, metric.WithAttributes(kvs...))
+
+	causes := make([]string, 0)
+	for _, e := range errors.Unwrap(err) {
+		causes = append(causes, e.Error())
+	}
+	kvs = append(kvs, attribute.StringSlice("causes", causes))
+
 	span := trace.SpanFromContext(ctx)
 	span.RecordError(err, trace.WithAttributes(kvs...), trace.WithStackTrace(true))
-
-	errorsCounter.Add(ctx, 1, metric.WithAttributes(kvs...))
+	span.SetStatus(codes.Error, err.Error())
 
 	return err
 }

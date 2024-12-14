@@ -59,6 +59,7 @@ var (
 			slog.String("code", string(errors.Code(err))),
 			slog.String("kind", string(errors.Kind(err))),
 			slog.Bool("retryable", errors.IsRetryable(err)),
+			slog.Any("causes", errors.Unwrap(err)),
 		}
 
 		return slog.Group("error", attrs...)
