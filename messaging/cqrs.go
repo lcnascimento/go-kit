@@ -28,7 +28,7 @@ func NewBrokerCQRS(opts ...Option) (BrokerCQRS, error) {
 	ctx := o11y.Context()
 
 	broker := &brokerCQRS{
-		logger:    watermill.NewSlogLogger(nil),
+		logger:    NewWatermillLogger(),
 		marshaler: cqrs.JSONMarshaler{},
 	}
 
@@ -142,6 +142,8 @@ func (b *brokerCQRS) buildRouter(ctx context.Context) error {
 		return b.onBuildRouterError(ctx, err)
 	}
 	b.router.AddMiddleware(middleware.Recoverer)
+	b.router.AddMiddleware(WithTracePropagation())
+	b.router.AddMiddleware(WithBaggage())
 
 	return nil
 }
