@@ -69,7 +69,9 @@ func Context() context.Context {
 }
 
 // Shutdown shuts down the OpenTelemetry providers.
-func Shutdown(ctx context.Context) {
+func Shutdown() {
+	ctx := context.Background()
+
 	if e := recover(); e != nil {
 		logger.Criticalw(ctx, "panic", iLog.Any("exception", e))
 	}

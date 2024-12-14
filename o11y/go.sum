@@ -17,8 +17,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0 h1:TmHmbvxPmaegwhDubVz0lICL0J5
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0/go.mod h1:qztMSjm835F2bXf+5HKAPIS5qsmQDqZna/PgVt4rWtI=
 github.com/lcnascimento/go-kit/errors v1.6.0 h1:KQAgR4ARisYV0jvY2KO7UDPwvZT8qeJmb2CuyPfYobs=
 github.com/lcnascimento/go-kit/errors v1.6.0/go.mod h1:hTrhE8chIgBmjG9OVWJg3ESrF18KoB0RwPDiQXBNp+s=
-github.com/lcnascimento/go-kit/runtime v1.3.0 h1:mDQWc5r+tj4CYFD8tFCL/KH+CvYQyoEXanEPFSqm56o=
-github.com/lcnascimento/go-kit/runtime v1.3.0/go.mod h1:YBP9bbIZzAMl0RLHqsNge85un3qvnwMZQJErDWlfGyY=
+github.com/lcnascimento/go-kit/runtime v1.3.1 h1:RAw75Kv6Fxw2WarpZsvmvbNRIRXlv7Tqn8mudirurS4=
+github.com/lcnascimento/go-kit/runtime v1.3.1/go.mod h1:YBP9bbIZzAMl0RLHqsNge85un3qvnwMZQJErDWlfGyY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=

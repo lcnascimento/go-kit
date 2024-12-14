@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/lcnascimento/go-kit/errors v1.6.0
-	github.com/lcnascimento/go-kit/runtime v1.3.0
+	github.com/lcnascimento/go-kit/runtime v1.3.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.7.0
 	go.opentelemetry.io/otel v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.8.0

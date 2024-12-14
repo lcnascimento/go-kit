@@ -20,7 +20,7 @@ var (
 
 func main() {
 	ctx := o11y.Context()
-	defer o11y.Shutdown(ctx)
+	defer o11y.Shutdown()
 
 	foo, _ := baggage.NewMember("foo", "foo")
 	bar, _ := baggage.NewMember("bar", "bar")
