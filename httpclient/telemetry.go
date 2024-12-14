@@ -57,7 +57,7 @@ func init() {
 }
 
 func (c *client) onRequestStart(ctx context.Context, host, path, method string) trace.Span {
-	ctx, span := tracer.Start(ctx, "HTTP "+method)
+	ctx, span := tracer.Start(ctx, "HTTP "+method, trace.WithSpanKind(trace.SpanKindClient))
 
 	logger.Debug(
 		ctx,
