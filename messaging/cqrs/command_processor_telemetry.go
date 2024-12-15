@@ -17,7 +17,7 @@ func (b *commandProcessorBuilder) onBuildError(ctx context.Context, err error) e
 	return err
 }
 
-func (b *commandProcessorBuilder) onCommandHandlingStart(params cqrs.CommandProcessorOnHandleParams) (context.Context, trace.Span) {
+func (b *commandProcessorBuilder) onHandleStart(params cqrs.CommandProcessorOnHandleParams) (context.Context, trace.Span) {
 	ctx := params.Message.Context()
 
 	logger.Debug(
@@ -30,7 +30,7 @@ func (b *commandProcessorBuilder) onCommandHandlingStart(params cqrs.CommandProc
 	return tracer.Start(ctx, params.Handler.HandlerName(), trace.WithSpanKind(trace.SpanKindConsumer))
 }
 
-func (b *commandProcessorBuilder) onCommandHandlingEnded(ctx context.Context, span trace.Span, params cqrs.CommandProcessorOnHandleParams) {
+func (b *commandProcessorBuilder) onHandleEnd(ctx context.Context, span trace.Span, params cqrs.CommandProcessorOnHandleParams) {
 	logger.Debug(
 		ctx,
 		"command handling ended",

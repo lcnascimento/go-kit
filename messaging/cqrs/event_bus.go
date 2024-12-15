@@ -30,6 +30,7 @@ func newEventBusBuilder(
 func (b *eventBusBuilder) build(ctx context.Context) (*cqrs.EventBus, error) {
 	eventBus, err := cqrs.NewEventBusWithConfig(b.pubsub, cqrs.EventBusConfig{
 		GeneratePublishTopic: b.generatePublishTopic,
+		OnPublish:            b.onPublish,
 		Marshaler:            b.marshaler,
 		Logger:               b.logger,
 	})
@@ -42,4 +43,13 @@ func (b *eventBusBuilder) build(ctx context.Context) (*cqrs.EventBus, error) {
 
 func (b *eventBusBuilder) generatePublishTopic(params cqrs.GenerateEventPublishTopicParams) (string, error) {
 	return params.EventName, nil
+}
+
+func (b *eventBusBuilder) onPublish(params cqrs.OnEventSendParams) error {
+	ctx, span := b.onPublishStart(params)
+	defer b.onPublishEnd(ctx, span)
+
+	params.Message.SetContext(ctx)
+
+	return nil
 }

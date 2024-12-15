@@ -39,7 +39,7 @@ func (b *commandProcessorBuilder) build(ctx context.Context) (*cqrs.CommandProce
 		cqrs.CommandProcessorConfig{
 			GenerateSubscribeTopic: b.generateCommandProcessorSubscribeTopic,
 			SubscriberConstructor:  b.commandProcessorSubscriberConstructor,
-			OnHandle:               b.onCommandHandling,
+			OnHandle:               b.onHandle,
 			Marshaler:              b.marshaler,
 			Logger:                 b.logger,
 		},
@@ -63,9 +63,9 @@ func (b *commandProcessorBuilder) commandProcessorSubscriberConstructor(
 	return b.pubsub, nil
 }
 
-func (b *commandProcessorBuilder) onCommandHandling(params cqrs.CommandProcessorOnHandleParams) (err error) {
-	ctx, span := b.onCommandHandlingStart(params)
-	defer b.onCommandHandlingEnded(ctx, span, params)
+func (b *commandProcessorBuilder) onHandle(params cqrs.CommandProcessorOnHandleParams) (err error) {
+	ctx, span := b.onHandleStart(params)
+	defer b.onHandleEnd(ctx, span, params)
 
 	err = params.Handler.Handle(ctx, params.Command)
 	if err == nil {

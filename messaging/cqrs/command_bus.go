@@ -30,6 +30,7 @@ func newCommandBusBuilder(
 func (b *commandBusBuilder) build(ctx context.Context) (*cqrs.CommandBus, error) {
 	commandBus, err := cqrs.NewCommandBusWithConfig(b.pubsub, cqrs.CommandBusConfig{
 		GeneratePublishTopic: b.generateCommandBusPublishTopic,
+		OnSend:               b.onSend,
 		Marshaler:            b.marshaler,
 		Logger:               b.logger,
 	})
@@ -42,4 +43,13 @@ func (b *commandBusBuilder) build(ctx context.Context) (*cqrs.CommandBus, error)
 
 func (b *commandBusBuilder) generateCommandBusPublishTopic(params cqrs.CommandBusGeneratePublishTopicParams) (string, error) {
 	return params.CommandName, nil
+}
+
+func (b *commandBusBuilder) onSend(params cqrs.CommandBusOnSendParams) error {
+	ctx, span := b.onSendStart(params)
+	defer b.onSendEnd(ctx, span)
+
+	params.Message.SetContext(ctx)
+
+	return nil
 }
