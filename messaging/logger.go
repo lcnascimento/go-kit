@@ -2,18 +2,14 @@ package messaging
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"go.opentelemetry.io/otel/baggage"
 
 	"github.com/lcnascimento/go-kit/o11y/log"
 )
 
-// BaggageFieldPrefix is the prefix for baggage fields.
-const BaggageFieldPrefix = "baggage."
+var logger = log.NewLogger("github.com/lcnascimento/go-kit/messaging")
 
 // WatermillLogger is a logger adapter for the Watermill library.
 type WatermillLogger struct {
@@ -56,36 +52,10 @@ func (l *WatermillLogger) With(fields watermill.LogFields) watermill.LoggerAdapt
 }
 
 func (l *WatermillLogger) buildContextAndAttrs(fields watermill.LogFields) (context.Context, []slog.Attr) {
-	ctx := context.Background()
-	bag, err := baggage.New()
-	if err != nil {
-		_ = l.onCreateBaggageError(ctx, err)
-		return ctx, []slog.Attr{}
-	}
-
 	attrs := make([]slog.Attr, 0, len(fields))
 	for k, v := range fields {
-		if !strings.HasPrefix(k, BaggageFieldPrefix) {
-			attrs = append(attrs, log.Any(k, v))
-			continue
-		}
-
-		member, err := baggage.NewMember(strings.TrimPrefix(k, BaggageFieldPrefix), fmt.Sprintf("%v", v))
-		if err != nil {
-			_ = l.onCreateBaggageMemberError(ctx, err)
-			continue
-		}
-
-		bag, err = bag.SetMember(member)
-		if err != nil {
-			_ = l.onSetBaggageMemberError(ctx, err)
-			continue
-		}
+		attrs = append(attrs, log.Any(k, v))
 	}
 
-	if bag.Len() > 0 {
-		ctx = baggage.ContextWithBaggage(ctx, bag)
-	}
-
-	return ctx, attrs
+	return context.Background(), attrs
 }

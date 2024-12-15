@@ -5,14 +5,17 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/lcnascimento/go-kit/messaging"
 )
 
 type eventBusBuilder struct {
-	pubsub    messaging.PubSub
-	marshaler cqrs.CommandEventMarshaler
-	logger    watermill.LoggerAdapter
+	pubsub     messaging.PubSub
+	marshaler  cqrs.CommandEventMarshaler
+	logger     watermill.LoggerAdapter
+	propagator propagation.TextMapPropagator
 }
 
 func newEventBusBuilder(
@@ -21,9 +24,10 @@ func newEventBusBuilder(
 	logger watermill.LoggerAdapter,
 ) *eventBusBuilder {
 	return &eventBusBuilder{
-		pubsub:    pubsub,
-		marshaler: marshaler,
-		logger:    logger,
+		pubsub:     pubsub,
+		marshaler:  marshaler,
+		logger:     logger,
+		propagator: otel.GetTextMapPropagator(),
 	}
 }
 
@@ -49,6 +53,7 @@ func (b *eventBusBuilder) onPublish(params cqrs.OnEventSendParams) error {
 	ctx, span := b.onPublishStart(params)
 	defer b.onPublishEnd(ctx, span)
 
+	b.propagator.Inject(ctx, propagation.MapCarrier(params.Message.Metadata))
 	params.Message.SetContext(ctx)
 
 	return nil

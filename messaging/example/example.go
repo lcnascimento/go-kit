@@ -23,16 +23,6 @@ func main() {
 	defer o11y.Shutdown()
 	ctx := o11y.Context()
 
-	ctx, span := tracer.Start(ctx, "main")
-	defer span.End()
-
-	foo, _ := baggage.NewMember("foo", "foo")
-	bar, _ := baggage.NewMember("bar", "bar")
-
-	bag, _ := baggage.New(foo, bar)
-
-	ctx = baggage.ContextWithBaggage(ctx, bag)
-
 	broker, err := cqrs.NewBroker()
 	if err != nil {
 		return
@@ -45,6 +35,16 @@ func main() {
 	}()
 
 	<-broker.Running(ctx)
+
+	ctx, span := tracer.Start(ctx, "main")
+	defer span.End()
+
+	foo, _ := baggage.NewMember("foo", "foo")
+	bar, _ := baggage.NewMember("bar", "bar")
+
+	bag, _ := baggage.New(foo, bar)
+
+	ctx = baggage.ContextWithBaggage(ctx, bag)
 
 	if err := broker.SendCommand(ctx, &command.CommandLogMessage{Message: "Hello, World!"}); err != nil {
 		return
