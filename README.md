@@ -1,62 +1,103 @@
 [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/)
 [![Release Workflow](https://github.com/lcnascimento/go-kit/actions/workflows/release.yaml/badge.svg?branch=main)](https://github.com/lcnascimento/go-kit/actions/workflows/release.yaml)
 
-# Go Kit
+<p align="center">
+    <img src="./logo.png" align="center" width="30%" style="border-radius: 20px;">
+</p>
+<p align="center"><h1 align="center">GO-KIT</h1></p>
+<p align="center">
+	<em>Go Kit is a repository of utilitary packages written in Go.</em>
+</p>
+<p align="center">
+</p>
+<p align="center"><!-- default option, no dependency badges. -->
+</p>
+<p align="center">
+	<!-- default option, no dependency badges. -->
+</p>
+<br>
 
-Go Kit is a repository of utilitary packages written in Go, designed to improve development experience.
+## 🔗 Table of Contents
 
+- [🚀 Getting Started](#-getting-started)
+  - [☑️ Prerequisites](#-prerequisites)
+  - [🤖 Usage](#🤖-usage)
+  - [🧪 Testing](#🧪-testing)
+- [📌 Project Roadmap](#-project-roadmap)
+- [🔰 Contributing](#-contributing)
 
-## Internal structure
+---
 
-This repository is designed as a Monorepo. Each folder represents an individual and independent package.
+## 🚀 Getting Started
 
-Every package is automatically versioned using [Semantic Release](https://github.com/semantic-release/semantic-release) default rules. Every semantic commit pushed to `main` branch, that updates a package codebase, will generate a new release version for its package. If a commit does not touches the code base of a package, its version must not be increased. A single commit can increase version of multiple packages when it touches them all.
+### ☑️ Prerequisites
 
-## How to use a package
+Before getting started with go-kit, ensure your runtime environment meets the following requirements:
 
-`go get github.com/lcnascimento/go-kit/<package-name>`
+- **Programming Language:** Go
+- **Package Manager:** Npm, Go modules
+- **Container Runtime:** Docker
 
-## How to predict next package versions locally
+### 🤖 Usage
 
-Just run `npm install` and `lerna exec --concurrency 1 -- semantic-release --tag-format='${LERNA_PACKAGE_NAME}/v\${version}'`
+Use any go-kit package in your project following the command:
 
-## Package Best Practices
+```sh
+❯ go get github.com/lcnascimento/go-kit/<desired packaged>
+```
 
-- High test coverage;
-- Include a well designed `README.md` file;
-- Include an example in `examples` folder, that illustrates how to use your package;
+### 🧪 Testing
 
-## Frequently Asked Questions
+Run the test suite using the following command:
 
-### What is the format of a semantic commit?
+```sh
+❯ make test.unit
+```
 
-`<type>(<scope>): <short summary>`
+---
 
-Type must be one of the following:
+## 📌 Project Roadmap
 
-- build: Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)
-- ci: Changes to our CI configuration files and scripts (examples: CircleCi, SauceLabs)
-- docs: Documentation only changes
-- feat: A new feature
-- fix: A bug fix
-- perf: A code change that improves performance
-- refactor: A code change that neither fixes a bug nor adds a feature
-- test: Adding missing tests or correcting existing tests
+- [x] **`env`**
+- [x] **`errors`**
+- [x] **`o11y`**
+- [x] **`validator`**
+- [x] **`httpclient`**
+- [x] **`grpcserver`**
+- [x] **`messaging`**
+- [ ] **`featureflag`**
 
-Commits with a footer message containing the phrase `BREAKING CHANGE: ` indicates a Major release.
+---
 
-You can read more about this [here](https://github.com/angular/angular/blob/master/CONTRIBUTING.md#-commit-message-format).
+## 🔰 Contributing
 
-Notice that, if your changes increases the Major version of your package, you MUST update package's go.mod properly. For instance, if there is a BREAKING CHANGE to package `foo`, that increases its version to `2.0.0`, you MUST update `foo/go.mod` with:
+- **💬 [Join the Discussions](https://github.com/lcnascimento/go-kit/discussions)**: Share your insights, provide feedback, or ask questions.
+- **🐛 [Report Issues](https://github.com/lcnascimento/go-kit/issues)**: Submit bugs found or log feature requests for the `go-kit` project.
+- **💡 [Submit Pull Requests](https://github.com/lcnascimento/go-kit/blob/main/CONTRIBUTING.md)**: Review open PRs, and submit your own PRs.
 
-`module github.com/lcnascimento/go-kit/foo` -> `module github.com/lcnascimento/go-kit/foo/v2`
+<details closed>
+<summary>Contributing Guidelines</summary>
 
-This need is required by Go design.
+1. **Fork the Repository**: Start by forking the project repository to your github account.
+2. **Clone Locally**: Clone the forked repository to your local machine using a git client.
+   ```sh
+   git clone https://github.com/lcnascimento/go-kit
+   ```
+3. **Create a New Branch**: Always work on a new branch, giving it a descriptive name.
+   ```sh
+   git checkout -b new-feature-x
+   ```
+4. **Make Your Changes**: Develop and test your changes locally.
+5. **Commit Your Changes**: Commit with a clear message describing your updates.
+   ```sh
+   git commit -m 'feat(package): Implemented new feature x.'
+   ```
+6. **Push to github**: Push the changes to your forked repository.
+   ```sh
+   git push origin feat/new-feature-x
+   ```
+7. **Submit a Pull Request**: Create a PR against the original project repository. Clearly describe the changes and their motivations.
+8. **Review**: Once your PR is reviewed and approved, it will be merged into the main branch. Congratulations on your contribution!
+</details>
 
-### What happens if my Pull Request does not have any semantic commit?
-
-No version will be created.
-
-### How can I create release candidates?
-
-Just merge your changes into `beta` branch.
+---
