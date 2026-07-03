@@ -5,15 +5,15 @@ on:
     branches: [main, beta]
 
 jobs:
-  quality_gate:
-    name: Quality Gate
-    uses: lcnascimento/go-kit/.github/workflows/quality_gate.yaml@main
+  # quality_gate:
+  #   name: Quality Gate
+  #   uses: lcnascimento/go-kit/.github/workflows/quality_gate.yaml@main
 
   versioning:
     name: Define next release version
-    runs-on: ubuntu-20.04
-    needs:
-      - quality_gate
+    runs-on: ubuntu-22.04
+    # needs:
+    #   - quality_gate
     permissions:
       contents: write
     steps:

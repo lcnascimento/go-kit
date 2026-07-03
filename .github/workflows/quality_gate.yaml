@@ -5,7 +5,7 @@ on: workflow_call
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
       uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
 
   vuln-check:
     name: Vuln Check
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
       uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
 
   unit_test:
     name: Unit Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
       uses: actions/checkout@v4
