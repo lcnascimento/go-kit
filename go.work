@@ -1,13 +1,12 @@
-go 1.23.2
+go 1.26.4
 
 use (
 	./env
 	./errors
-	./grpcserver
-	./httpclient
-	./messaging
+	./grpc
+	./http
 	./o11y
-	./runtime
+	./temporal
 	./util
 	./validator
 )

@@ -1,49 +1,128 @@
 package errors
 
 var (
-	// ErrResourceNotFound indicates that a desired resource was not found.
-	ErrResourceNotFound error = New("resource not found").WithKind(KindNotFound).WithCode("RESOURCE_NOT_FOUND")
-
 	// ErrNotImplemented indicates that a given feature is not implemented yet.
-	ErrNotImplemented error = New("feature not implemented yet").WithCode("FEATURE_NOT_IMPLEMENTED")
+	ErrNotImplemented error = New("feature not implemented yet").
+				WithCode("FEATURE_NOT_IMPLEMENTED").
+				WithKind(KindInternal)
 
 	// ErrMock is a fake mocked that should be used in test scenarios.
-	ErrMock error = New("mocked error").WithCode("MOCKED_ERROR")
+	ErrMock error = New("mocked error").
+		WithCode("MOCKED_ERROR").
+		WithKind(KindInternal)
+
+	// ErrResourceNotFound indicates that a desired resource was not found.
+	ErrResourceNotFound error = New("resource not found").
+				WithCode("RESOURCE_NOT_FOUND").
+				WithKind(KindNotFound)
+
+	// ErrRequestUnauthenticated indicates that the request made to an API has missing or invalid credentials.
+	ErrRequestUnauthenticated = New("unauthenticated request").
+					WithCode("ERR_UNAUTHENTICATED").
+					WithKind(KindUnauthenticated)
+
+	// ErrRequestUnauthorized indicates that the request made to an API has missing or invalid credentials.
+	ErrRequestUnauthorized = New("unauthorized request").
+				WithCode("ERR_UNAUTHORIZED").
+				WithKind(KindUnauthorized)
+
+	// ErrRequestError occurs when there is any error on requests to external systems.
+	ErrRequestError = New("request to external system failed").
+			WithCode("ERR_REQUEST_TO_EXTERNAL_SYSTEM_FAILED").
+			WithKind(KindInternal).
+			Retryable()
+
+	// ErrUnexpectedResponseStatus occurs when a request to an external system returns an unexpected status code.
+	ErrUnexpectedResponseStatus = New("unexpected status response from external system").
+					WithCode("ERR_UNEXPECTED_RESPONSE_STATUS").
+					WithKind(KindInternal).
+					Retryable()
+
+	// ErrCastResponsePayload indicates an issue during response payload casting.
+	ErrCastResponsePayload = New("could not cast response data").
+				WithCode("ERR_CAST_RESPONSE_PAYLOAD").
+				WithKind(KindInternal)
+
+	// ErrInvalidInput occurs when a given input is invalid.
+	ErrInvalidInput = New("invalid input").
+			WithCode("ERR_INVALID_INPUT").
+			WithKind(KindInvalidInput)
+
+	// ErrInvalidAccountID occurs when a given account ID is invalid.
+	ErrInvalidAccountID = New("invalid account ID").
+				WithCode("ERR_INVALID_ACCOUNT_ID").
+				WithKind(KindInvalidInput)
+
+	// ErrFetchFeatureFlag occurs when a request made to a Feature Flag service fails.
+	ErrFetchFeatureFlag = New("could not fetch feature flag").
+				WithCode("ERR_FETCH_FEATURE_FLAG").
+				WithKind(KindInternal).
+				Retryable()
+
+	// ErrContextCanceled indicates that an operation was canceled, typically by a context cancellation.
+	ErrContextCanceled = New("operation canceled").
+				WithCode("ERR_CONTEXT_CANCELED").
+				WithKind(KindCanceled).
+				Retryable()
 )
 
-// CodeType is a string that contains error's code description.
-type CodeType string
-
-const (
-	// CodeUnknown is the default code returned when the application doesn't attach any code into the error.
-	CodeUnknown CodeType = "UNKNOWN"
+type (
+	CodeType string
+	KindType string
 )
 
-// KindType is a string that contains error's kind description.
-type KindType string
+const CodeUnknown CodeType = "UNKNOWN"
 
 const (
-	// KindUnknown is the default kind returned when the application doesn't attach any kind into the error.
-	KindUnknown KindType = "UNKNOWN"
-
-	// KindConflict are errors caused by requests with data that conflicts with the current state of the system.
-	KindConflict KindType = "CONFLICT"
-
-	// KindInternal are errors caused by some internal fail like failed IO calls or invalid memory states.
-	KindInternal KindType = "INTERNAL"
-
-	// KindInvalidInput are errors caused by some invalid values on the input.
-	KindInvalidInput KindType = "INVALID_INPUT"
-
-	// KindNotFound are errors caused by any required resources that not exists on the data repository.
-	KindNotFound KindType = "NOT_FOUND"
-
-	// KindUnauthenticated are errors caused by an unauthenticated call.
-	KindUnauthenticated KindType = "UNAUTHENTICATED"
-
-	// KindUnauthorized are errors caused by an unauthorized call.
-	KindUnauthorized KindType = "UNAUTHORIZED"
-
-	// KindResourceExhausted indicates some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.
+	KindUnknown           KindType = "UNKNOWN"
+	KindConflict          KindType = "CONFLICT"
+	KindInternal          KindType = "INTERNAL"
+	KindInvalidInput      KindType = "INVALID_INPUT"
+	KindNotFound          KindType = "NOT_FOUND"
+	KindUnauthenticated   KindType = "UNAUTHENTICATED"
+	KindUnauthorized      KindType = "UNAUTHORIZED"
 	KindResourceExhausted KindType = "RESOURCE_EXHAUSTED"
+	KindCritical          KindType = "CRITICAL"
+	KindFatal             KindType = "FATAL"
+	KindCanceled          KindType = "CANCELED"
+	KindWarn              KindType = "WARN"
 )
+
+type SeverityType int
+
+const (
+	SeverityWarn SeverityType = iota
+
+	// SeverityError indicates a regular error.
+	SeverityError
+
+	// SeverityCritical indicates a critical error.
+	// Typically, this kind of error is not expected to happen and may require immediate attention.
+	SeverityCritical
+
+	// SeverityFatal indicates a fatal error.
+	// Typically, this kind of error is not expected to happen and will cause the application to crash.
+	SeverityFatal
+)
+
+// String returns the string representation of the SeverityType.
+func (s SeverityType) String() string {
+	return severityNames[s]
+}
+
+var severityNames = []string{
+	"WARN",
+	"ERROR",
+	"CRITICAL",
+	"FATAL",
+}
+
+// AttributeSet is a map of string key-value pairs that can be used to add additional information to an error.
+type AttributeSet map[string]string
+
+// Merge merges the given AttributeSet into the current one.
+func (s AttributeSet) Merge(other AttributeSet) {
+	for key, value := range other {
+		s[key] = value
+	}
+}

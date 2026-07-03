@@ -1,52 +1,91 @@
+//nolint:mnd // OK
 package main
 
 import (
-	"errors"
+	"context"
 	"log/slog"
+	"math/rand"
+	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
+	"github.com/lcnascimento/go-kit/errors"
 	"github.com/lcnascimento/go-kit/o11y"
+	"github.com/lcnascimento/go-kit/o11y/baggage"
 	"github.com/lcnascimento/go-kit/o11y/log"
 )
 
 var (
-	pkg = "github.com/lcnascimento/go-kit/o11y/example"
-
+	// This is how the OpenTelemetry community uses telemetry components.
+	// Instantiate a tracer, meter and logger for each instrumented package, given them its exclusive name.
+	// They do not create a single tracer, meter or logger for the entire application, passing it around via dependency injection.
+	pkg    = "github.com/lcnascimento/go-kit/o11y/example"
 	tracer = otel.Tracer(pkg)
-	logger = log.NewLogger(pkg)
+	meter  = otel.Meter(pkg)
+	logger = log.MustNewLogger(pkg)
+
+	requestsCounter metric.Int64Counter
 )
 
 func main() {
-	ctx := o11y.Context()
+	ctx := o11y.MustStart()
 	defer o11y.Shutdown()
 
-	foo, _ := baggage.NewMember("foo", "foo")
-	bar, _ := baggage.NewMember("bar", "bar")
+	requestsCounter, _ = meter.Int64Counter("o11y.example.requests")
 
-	bag, _ := baggage.New(foo, bar)
+	// To configure profiling, you can set the following environment variables:
+	// OTEL_PROFILES_EXPORTER=pyroscope
+	// OTEL_PROFILES=cpu,heap,goroutine,mutex
+	// OTEL_PROFILE_EXPORT_INTERVAL=10s
 
-	ctx = baggage.ContextWithBaggage(ctx, bag)
+	for {
+		select {
+		case <-time.After(time.Second):
+			fakeRequest()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
 
-	ctx, span := tracer.Start(ctx, "main")
+//nolint:gosec // OK
+func fakeRequest() {
+	ctx, span := tracer.Start(context.Background(), "fake_request")
 	defer span.End()
 
-	attrs := []slog.Attr{
-		slog.String("yay", "keke"),
+	ctx = baggage.ContextWithCorrelationID(ctx, "correlation-id")
+
+	time.Sleep(time.Second)
+
+	var code string
+	switch rand.Intn(10) {
+	case 0:
+		code = "cached"
+		logger.Debug(ctx, "nothing to do", slog.String("code", code))
+	case 1:
+		code = "warning"
+		logger.Warn(ctx, "something might be wrong", slog.String("code", code))
+	case 2:
+		code = "error"
+		logger.Error(ctx, fakeError("something is wrong", errors.CodeType(code)))
+	case 3:
+		code = "critical"
+		logger.Critical(ctx, fakeError("something went really wrong", errors.CodeType(code)))
+	default:
+		code = "ok"
+		logger.Info(ctx, "success", slog.String("code", code))
 	}
 
-	slog.DebugContext(ctx, "SLOG DEBUG")
-	slog.InfoContext(ctx, "SLOG INFO")
-	slog.WarnContext(ctx, "SLOG WARN")
-	slog.ErrorContext(ctx, "SLOG ERROR")
+	requestsCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("code", code)))
+}
 
-	logger.Trace(ctx, "TRACE", attrs...)
-	logger.Debug(ctx, "DEBUG", attrs...)
-	logger.Info(ctx, "INFO", attrs...)
-	logger.Warn(ctx, "WARN", attrs...)
-	logger.Error(ctx, errors.New("ERROR"), attrs...)
-	logger.Critical(ctx, errors.New("CRITICAL"), attrs...)
-
-	panic("PANIC")
+func fakeError(msg string, code errors.CodeType) error {
+	return errors.New("%s", msg).
+		WithAttribute("key1", "value1").
+		WithAttribute("key2", "value2").
+		WithCode(code).
+		WithKind(errors.KindResourceExhausted).
+		WithCause(errors.New("nested error"))
 }

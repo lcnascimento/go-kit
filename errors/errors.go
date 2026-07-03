@@ -5,89 +5,97 @@ import (
 	"fmt"
 )
 
-// CustomError is a structure that encodes useful information about a given error.
+// CustomError is an error that encodes useful information about a given error.
 //
 // Kind: Gives semantics for the error. It is expected to be interpreted by transport layers;
 // Code: Defines what the Error actually is, by an unique alias;
 // Retryable: Indicates if the given error may be fixed with a retry execution.
 //
 // It is designed to work well within a Go Error Tree.
-type CustomError struct {
-	kind      KindType
-	code      CodeType
-	retryable bool
-	errs      []error
+type CustomError interface {
+	error
+
+	// WithKind return a copy of the CustomError with the given KindType filled.
+	WithKind(kind KindType) CustomError
+
+	// WithCode return a copy of the CustomError with the given CodeType filled.
+	WithCode(code CodeType) CustomError
+
+	// WithCause return a copy of the CustomError with the given Cause attached as the
+	// last internal error of this CustomError.
+	WithCause(cause error) CustomError
+
+	// WithAttribute returns a copy of the CustomError with the given Attribute filled.
+	WithAttribute(key, value string) CustomError
+
+	// Retryable returns a copy of the CustomError tagged as retryable.
+	Retryable() CustomError
+}
+
+type custom struct {
+	kind       KindType
+	code       CodeType
+	attributes AttributeSet
+	retryable  bool
+	errs       []error
 }
 
 // New returns a new instance of CustomError with the given message.
 // It uses KindUnknown, CodeUnknown and 'false' by default for Kind, Code and Retryable attributes, respectively.
 func New(msg string, args ...any) CustomError {
-	err := fmt.Errorf(msg, args...)
+	err := e.New(msg)
+	if len(args) > 0 {
+		err = fmt.Errorf(msg, args...)
+	}
 
-	return CustomError{
-		kind:      KindUnknown,
-		code:      CodeUnknown,
-		errs:      []error{err},
-		retryable: false,
+	return custom{
+		kind:       KindUnknown,
+		code:       CodeUnknown,
+		attributes: AttributeSet{},
+		errs:       []error{err},
+		retryable:  false,
 	}
 }
 
-// NewMissingRequiredDependency creates a new error that indicates a missing required dependency.
-// It should be producing at struct constructors.
-func NewMissingRequiredDependency(name string) error {
-	return New("Missing required dependency: %s", name).
-		WithKind(KindInvalidInput).
-		WithCode("MISSING_REQUIRED_DEPENDENCY")
-}
-
-// NewValidationError creates a Validation error.
-func NewValidationError(desc string) error {
-	return New(desc).WithKind(KindInvalidInput).WithCode("VALIDATION_ERROR")
-}
-
 // Error returns CustomError message.
-func (ce CustomError) Error() string {
+func (ce custom) Error() string {
+	// it must never happen, but we this check to avoid bugs that produces panics.
+	if len(ce.errs) == 0 {
+		return "no error message configured"
+	}
+
 	return ce.errs[0].Error()
 }
 
 // Is indicates if the current error is equal to the given target one.
-func (ce CustomError) Is(target error) bool {
-	var te CustomError
+func (ce custom) Is(target error) bool {
+	var te custom
 	if !e.As(target, &te) {
 		return false
-	}
-
-	if len(ce.errs) != len(te.errs) {
-		return false
-	}
-
-	for i := range ce.errs {
-		if ce.errs[i] != te.errs[i] {
-			return false
-		}
 	}
 
 	eq1 := ce.code == te.code
 	eq2 := ce.kind == te.kind
 	eq3 := ce.retryable == te.retryable
+	eq4 := ce.Error() == te.Error()
 
-	return eq1 && eq2 && eq3
+	return eq1 && eq2 && eq3 && eq4
 }
 
 // Unwrap unwraps all internal errors that are baselines for this error.
-func (ce CustomError) Unwrap() []error {
+func (ce custom) Unwrap() []error {
 	return ce.errs
 }
 
 // WithKind return a copy of the CustomError with the given KindType filled.
-func (ce CustomError) WithKind(kind KindType) CustomError {
+func (ce custom) WithKind(kind KindType) CustomError {
 	ce.kind = kind
 
 	return ce
 }
 
 // WithCode return a copy of the CustomError with the given CodeType filled.
-func (ce CustomError) WithCode(code CodeType) CustomError {
+func (ce custom) WithCode(code CodeType) CustomError {
 	ce.code = code
 
 	return ce
@@ -95,14 +103,23 @@ func (ce CustomError) WithCode(code CodeType) CustomError {
 
 // WithCause return a copy of the CustomError with the given Cause attached as the
 // last internal error of this CustomError.
-func (ce CustomError) WithCause(cause error) CustomError {
+func (ce custom) WithCause(cause error) CustomError {
 	ce.errs = append(ce.errs, cause)
 
 	return ce
 }
 
+// WithAttribute returns a copy of the CustomError with the given Attributes filled.
+//
+//nolint:gocritic // Ok.
+func (ce custom) WithAttribute(key, value string) CustomError {
+	ce.attributes[key] = value
+
+	return ce
+}
+
 // Retryable returns a copy of the CustomError tagged as retryable.
-func (ce CustomError) Retryable() CustomError {
+func (ce custom) Retryable() CustomError {
 	ce.retryable = true
 
 	return ce
@@ -116,7 +133,7 @@ func (ce CustomError) Retryable() CustomError {
 // traversal of its children.
 func Kind(err error) KindType {
 	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
-	if ce, ok := err.(CustomError); ok && ce.kind != KindUnknown {
+	if ce, ok := err.(custom); ok && ce.kind != KindUnknown {
 		return ce.kind
 	}
 
@@ -137,7 +154,7 @@ func Kind(err error) KindType {
 // traversal of its children.
 func Code(err error) CodeType {
 	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
-	if ce, ok := err.(CustomError); ok && ce.code != CodeUnknown {
+	if ce, ok := err.(custom); ok && ce.code != CodeUnknown {
 		return ce.code
 	}
 
@@ -150,6 +167,39 @@ func Code(err error) CodeType {
 	return CodeUnknown
 }
 
+// Severity retrieves the relevant SeverityType for the given error based on its Kind.
+func Severity(err error) SeverityType {
+	switch Kind(err) {
+	case KindInvalidInput, KindNotFound, KindCanceled, KindWarn:
+		return SeverityWarn
+	case KindCritical:
+		return SeverityCritical
+	case KindFatal:
+		return SeverityFatal
+	}
+
+	return SeverityError
+}
+
+// Attributes retrieves all the attributes that defined in the given error.
+func Attributes(err error) AttributeSet {
+	set := AttributeSet{}
+
+	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
+	ce, ok := err.(custom)
+	if !ok {
+		return set
+	}
+
+	for _, inner := range ce.Unwrap() {
+		set.Merge(Attributes(inner))
+	}
+
+	set.Merge(ce.attributes)
+
+	return set
+}
+
 // IsRetryable reports whether any error in err's tree is retryable.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly calling its Unwrap() error
@@ -157,7 +207,7 @@ func Code(err error) CodeType {
 // traversal of its children.
 func IsRetryable(err error) bool {
 	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
-	if ce, ok := err.(CustomError); ok && ce.retryable {
+	if ce, ok := err.(custom); ok && ce.retryable {
 		return true
 	}
 
@@ -168,6 +218,52 @@ func IsRetryable(err error) bool {
 	}
 
 	return false
+}
+
+// Reasons returns all the reasons that led to the creation of the given error.
+func Reasons(err error) []string {
+	reasons := []string{}
+
+	for _, inner := range Unwrap(err) {
+		reasons = append(reasons, innerReasons(inner, false)...)
+	}
+
+	if len(reasons) == 0 {
+		return reasons
+	}
+
+	return reasons[1:]
+}
+
+// SafeReasons returns all the reasons that led to the creation of the given error.
+// It does not exposes non CustomErrors as reasons, to prevent exposing internal details.
+func SafeReasons(err error) []string {
+	reasons := []string{}
+
+	for _, inner := range Unwrap(err) {
+		reasons = append(reasons, innerReasons(inner, true)...)
+	}
+
+	return reasons
+}
+
+func innerReasons(err error, safe bool) []string {
+	reasons := []string{}
+	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
+	if _, ok := err.(custom); !safe || ok {
+		reasons = append(reasons, err.Error())
+	}
+
+	inner := Unwrap(err)
+	if len(inner) <= 1 {
+		return reasons
+	}
+
+	for _, err := range inner[1:] {
+		reasons = append(reasons, innerReasons(err, safe)...)
+	}
+
+	return reasons
 }
 
 // Is reports whether any error in err's tree matches target.
@@ -215,7 +311,7 @@ func Wrap(err error, msg string, args ...any) error {
 	toWrap := fmt.Errorf(msg, args...)
 
 	//nolint:errorlint // we don't want to use [errors.As] here intentionally.
-	if ce, ok := err.(CustomError); ok {
+	if ce, ok := err.(custom); ok {
 		ce.errs = append([]error{toWrap}, ce.errs...)
 
 		return ce

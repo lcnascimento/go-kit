@@ -3,35 +3,49 @@ package log
 import (
 	"context"
 	"log/slog"
-	"os"
-	"strings"
 
-	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"github.com/lcnascimento/go-kit/o11y/internal/log"
 )
 
-// NewHandler creates a new slog.Handler with OpenTelemetry support.
-func NewHandler(pkg string) slog.Handler {
-	return &handler{
-		level:   getLevel(),
-		Handler: otelslog.NewHandler(pkg),
+// HandlerConfig holds the configuration for the slog.Handler.
+type HandlerConfig struct {
+	core     slog.Handler
+	resolver func(context.Context, slog.Record) []slog.Attr
+}
+
+// NewHandler creates a new slog.Handler with the given options.
+func NewHandler(name string, opts ...HandlerOption) (slog.Handler, error) {
+	h := &HandlerConfig{}
+	for _, opt := range opts {
+		opt(h)
+	}
+
+	return log.NewHandler(name, h.core, h.resolver)
+}
+
+// Core returns the core slog.Handler.
+func (h *HandlerConfig) Core() slog.Handler {
+	return h.core
+}
+
+// AttrResolver returns the attribute resolver.
+func (h *HandlerConfig) AttrResolver() func(context.Context, slog.Record) []slog.Attr {
+	return h.resolver
+}
+
+// HandlerOption is a function that configures a Handler.
+type HandlerOption func(*HandlerConfig)
+
+// WithLogHandler sets the core handler for the handler.
+func WithLogHandler(core slog.Handler) HandlerOption {
+	return func(h *HandlerConfig) {
+		h.core = core
 	}
 }
 
-type handler struct {
-	*otelslog.Handler
-	level slog.Level
-}
-
-// Enabled returns true if the handler is enabled for the given level.
-func (h *handler) Enabled(ctx context.Context, level slog.Level) bool {
-	return level >= h.level
-}
-
-func getLevel() slog.Level {
-	name := "INFO"
-	if l := os.Getenv("LOG_LEVEL"); l != "" {
-		name = l
+// WithLoggerAttrResolver sets the logger attribute resolver in the config.
+func WithLoggerAttrResolver(resolver func(context.Context, slog.Record) []slog.Attr) HandlerOption {
+	return func(h *HandlerConfig) {
+		h.resolver = resolver
 	}
-
-	return levelByName[strings.ToUpper(name)]
 }
