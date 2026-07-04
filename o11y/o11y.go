@@ -35,15 +35,12 @@ var (
 )
 
 // Start starts the otel components.
-func Start(ctx context.Context, opts ...Option) error {
+func Start(ctx context.Context) error {
 	if tp != nil || mp != nil || lp != nil {
 		return errors.New("otel already started")
 	}
 
 	cfg := pLog.HandlerConfig{}
-	for _, opt := range opts {
-		opt(&cfg)
-	}
 
 	if err := log.Start(ctx, cfg.Core(), cfg.AttrResolver()); err != nil {
 		slog.Default().Error("could not start log component", "error", err)
