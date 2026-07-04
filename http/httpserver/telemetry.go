@@ -18,3 +18,9 @@ func (s *Server) onStart(port int) {
 func (s *Server) onShutdown() {
 	logger.Info(context.Background(), "shutting down HTTP server")
 }
+
+func (s *Server) onError(err error) error {
+	logger.ErrorBySeverity(context.Background(), err)
+
+	return err
+}

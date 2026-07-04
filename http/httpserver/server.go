@@ -52,9 +52,9 @@ func (s *Server) Start(cb func(router *mux.Router) error) error {
 	s.server.Handler = router
 
 	s.onStart(port)
-	err := s.server.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		return err
+
+	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return s.onError(err)
 	}
 
 	return nil
@@ -62,5 +62,11 @@ func (s *Server) Start(cb func(router *mux.Router) error) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.onShutdown()
-	return s.server.Shutdown(ctx)
+
+	err := s.server.Shutdown(ctx)
+	if err != nil {
+		s.onError(err)
+	}
+
+	return err
 }
