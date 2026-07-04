@@ -3,9 +3,6 @@ package o11y
 import (
 	"context"
 	"log/slog"
-	"os"
-	"os/signal"
-	"syscall"
 
 	oLog "go.opentelemetry.io/otel/log"
 	oMetric "go.opentelemetry.io/otel/metric"
@@ -38,21 +35,12 @@ var (
 )
 
 // Start starts the otel components.
-func Start(opts ...Option) (context.Context, error) {
+func Start(opts ...Option) error {
 	if tp != nil || mp != nil || lp != nil {
-		return nil, errors.New("otel already started")
+		return errors.New("otel already started")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-ch
-		slog.Default().Debug("context canceled by external signal")
-		cancel()
-	}()
+	ctx := context.Background()
 
 	cfg := pLog.HandlerConfig{}
 	for _, opt := range opts {
@@ -61,35 +49,32 @@ func Start(opts ...Option) (context.Context, error) {
 
 	if err := log.Start(ctx, cfg.Core(), cfg.AttrResolver()); err != nil {
 		slog.Default().Error("could not start log component", "error", err)
-		return nil, err
+		return err
 	}
 	if err := trace.Start(ctx); err != nil {
 		slog.Default().Error("could not start trace component", "error", err)
-		return nil, err
+		return err
 	}
 	if err := metric.Start(ctx); err != nil {
 		slog.Default().Error("could not start metric component", "error", err)
-		return nil, err
+		return err
 	}
 	if err := profile.Start(ctx); err != nil {
 		slog.Default().Error("could not start profile component", "error", err)
-		return nil, err
+		return err
 	}
 
 	propagator.Setup()
 
 	slog.Default().Debug("o11y started successfully", "config", global.Config())
-	return ctx, nil
+	return nil
 }
 
 // MustStart starts the otel components and panics if an error occurs.
-func MustStart() context.Context {
-	ctx, err := Start()
-	if err != nil {
+func MustStart() {
+	if err := Start(); err != nil {
 		panic(err)
 	}
-
-	return ctx
 }
 
 // Shutdown shuts down the otel components.

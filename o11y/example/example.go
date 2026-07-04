@@ -5,6 +5,9 @@ import (
 	"context"
 	"log/slog"
 	"math/rand"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -30,8 +33,19 @@ var (
 )
 
 func main() {
-	ctx := o11y.MustStart()
+	o11y.MustStart()
 	defer o11y.Shutdown()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-ch
+		slog.Default().Debug("context canceled by external signal")
+		cancel()
+	}()
 
 	requestsCounter, _ = meter.Int64Counter("o11y.example.requests")
 
