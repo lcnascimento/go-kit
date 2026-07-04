@@ -78,6 +78,10 @@ func kindToHTTPStatusCode(kind errors.KindType) int {
 		return http.StatusInternalServerError
 	case errors.KindResourceExhausted:
 		return http.StatusTooManyRequests
+	case errors.KindServiceUnavailable:
+		return http.StatusServiceUnavailable
+	case errors.KindUnprocessable:
+		return http.StatusUnprocessableEntity
 	default:
 		return http.StatusInternalServerError
 	}

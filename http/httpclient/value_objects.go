@@ -50,6 +50,10 @@ func statusCodeToKind(code int) errors.KindType {
 		return errors.KindInternal
 	case http.StatusTooManyRequests:
 		return errors.KindResourceExhausted
+	case http.StatusServiceUnavailable:
+		return errors.KindServiceUnavailable
+	case http.StatusUnprocessableEntity:
+		return errors.KindUnprocessable
 	default:
 		return errors.KindInternal
 	}

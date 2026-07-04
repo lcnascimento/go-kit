@@ -74,18 +74,20 @@ type (
 const CodeUnknown CodeType = "UNKNOWN"
 
 const (
-	KindUnknown           KindType = "UNKNOWN"
-	KindConflict          KindType = "CONFLICT"
-	KindInternal          KindType = "INTERNAL"
-	KindInvalidInput      KindType = "INVALID_INPUT"
-	KindNotFound          KindType = "NOT_FOUND"
-	KindUnauthenticated   KindType = "UNAUTHENTICATED"
-	KindUnauthorized      KindType = "UNAUTHORIZED"
-	KindResourceExhausted KindType = "RESOURCE_EXHAUSTED"
-	KindCritical          KindType = "CRITICAL"
-	KindFatal             KindType = "FATAL"
-	KindCanceled          KindType = "CANCELED"
-	KindWarn              KindType = "WARN"
+	KindUnknown            KindType = "UNKNOWN"
+	KindConflict           KindType = "CONFLICT"
+	KindInternal           KindType = "INTERNAL"
+	KindInvalidInput       KindType = "INVALID_INPUT"
+	KindNotFound           KindType = "NOT_FOUND"
+	KindUnauthenticated    KindType = "UNAUTHENTICATED"
+	KindUnauthorized       KindType = "UNAUTHORIZED"
+	KindUnprocessable      KindType = "UNPROCESSABLE"
+	KindResourceExhausted  KindType = "RESOURCE_EXHAUSTED"
+	KindServiceUnavailable KindType = "SERVICE_UNAVAILABLE"
+	KindCritical           KindType = "CRITICAL"
+	KindFatal              KindType = "FATAL"
+	KindCanceled           KindType = "CANCELED"
+	KindWarn               KindType = "WARN"
 )
 
 type SeverityType int
