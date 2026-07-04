@@ -35,12 +35,10 @@ var (
 )
 
 // Start starts the otel components.
-func Start(opts ...Option) error {
+func Start(ctx context.Context, opts ...Option) error {
 	if tp != nil || mp != nil || lp != nil {
 		return errors.New("otel already started")
 	}
-
-	ctx := context.Background()
 
 	cfg := pLog.HandlerConfig{}
 	for _, opt := range opts {
@@ -71,16 +69,14 @@ func Start(opts ...Option) error {
 }
 
 // MustStart starts the otel components and panics if an error occurs.
-func MustStart() {
-	if err := Start(); err != nil {
+func MustStart(ctx context.Context) {
+	if err := Start(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // Shutdown shuts down the otel components.
-func Shutdown() {
-	ctx := context.Background()
-
+func Shutdown(ctx context.Context) error {
 	slog.Default().Debug("shutting down telemetry components")
 
 	errs := []error{}
@@ -99,7 +95,7 @@ func Shutdown() {
 	}
 
 	if len(errs) == 0 {
-		return
+		return nil
 	}
 
 	err := errors.New("could not shutdown telemetry components")
@@ -108,4 +104,5 @@ func Shutdown() {
 	}
 
 	slog.Default().Error(err.Error(), "reasons", errors.Reasons(err))
+	return err
 }

@@ -33,9 +33,6 @@ var (
 )
 
 func main() {
-	o11y.MustStart()
-	defer o11y.Shutdown()
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ch := make(chan os.Signal, 1)
@@ -46,6 +43,9 @@ func main() {
 		slog.Default().Debug("context canceled by external signal")
 		cancel()
 	}()
+
+	o11y.MustStart(ctx)
+	defer o11y.Shutdown(ctx)
 
 	requestsCounter, _ = meter.Int64Counter("o11y.example.requests")
 
