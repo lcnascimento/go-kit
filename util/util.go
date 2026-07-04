@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"regexp"
 	"sort"
 	"strings"
@@ -11,6 +12,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/lcnascimento/go-kit/o11y/baggage"
 )
+
+// Pick randomly selects one item of the given list.
+func Pick[T any](items ...T) T {
+	return items[rand.IntN(len(items))]
+}
+
+// RandomEmail generate a random email.
+func RandomEmail() string {
+	return fmt.Sprintf("user_%08x@example.com", rand.Uint32())
+}
+
+// RandomPhone generate a random Brazilian phone.
+func RandomPhone() string {
+	return fmt.Sprintf("+55119%08d", rand.IntN(100_000_000))
+}
+
+// RandomPastTime generate a random past Time.
+func RandomPastTime() time.Time {
+	offset := time.Duration(rand.IntN(30*24*60)) * time.Minute
+
+	return time.Now().UTC().Add(-offset).Truncate(time.Millisecond)
+}
 
 // ToPointer returns a pointer reference to the given object.
 func ToPointer[T any](v T) *T {
@@ -25,12 +48,6 @@ func SafeValue[T any](v *T) T {
 	}
 
 	return *v
-}
-
-// FakeNow returns a time.Time that is always the same.
-// This is useful for testing purposes.
-func FakeNow() time.Time {
-	return time.Date(2024, 2, 5, 14, 35, 0, 0, time.UTC)
 }
 
 var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
