@@ -10,15 +10,7 @@ import (
 
 var (
 	ErrParseRequestBody     = errors.New("failed to parse request body").WithCode("ERR_PARSE_REQUEST_BODY").WithKind(errors.KindInvalidInput)
-	ErrMissingAccountID     = errors.New("missing account id parameter").WithCode("ERR_MISSING_ACCOUNT_ID").WithKind(errors.KindInvalidInput)
-	ErrMissingPhaseID       = errors.New("missing phase id parameter").WithCode("ERR_MISSING_PHASE_ID").WithKind(errors.KindInvalidInput)
-	ErrMissingJourneyID     = errors.New("missing journey id parameter").WithCode("ERR_MISSING_JOURNEY_ID").WithKind(errors.KindInvalidInput)
-	ErrInvalidAccountID     = errors.New("invalid account id parameter").WithCode("ERR_INVALID_ACCOUNT_ID").WithKind(errors.KindInvalidInput)
-	ErrMissingCustomerID    = errors.New("missing customer id parameter").WithCode("ERR_MISSING_CUSTOMER_ID").WithKind(errors.KindInvalidInput)
 	ErrMissingCorrelationID = errors.New("missing correlation id parameter").WithCode("ERR_MISSING_CORRELATION_ID").WithKind(errors.KindInvalidInput)
-
-	ErrInvalidCountryCode = errors.New("invalid country code parameter").WithCode("ERR_INVALID_COUNTRY_CODE").WithKind(errors.KindInvalidInput)
-	ErrInvalidStateCode   = errors.New("invalid state code parameter").WithCode("ERR_INVALID_STATE_CODE").WithKind(errors.KindInvalidInput)
 
 	logger = log.MustNewLogger("github.com/lcnascimento/go-kit/http/httpserver/util")
 )

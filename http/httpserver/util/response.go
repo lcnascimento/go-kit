@@ -5,10 +5,20 @@ import (
 	"net/http"
 )
 
-func WriteMessage(rw http.ResponseWriter, status int, message string) {
-	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	rw.WriteHeader(status)
-	rw.Write([]byte(message))
+type idResponse struct {
+	ID string `json:"id"`
+}
+
+type messageResponse struct {
+	Message string `json:"message"`
+}
+
+func WriteID(rw http.ResponseWriter, status int, id string) {
+	WriteResponse(rw, status, &idResponse{id})
+}
+
+func WriteMessage(rw http.ResponseWriter, status int, msg string) {
+	WriteResponse(rw, status, &messageResponse{msg})
 }
 
 func WriteResponse(rw http.ResponseWriter, status int, response any) {
