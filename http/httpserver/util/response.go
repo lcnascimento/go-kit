@@ -5,6 +5,12 @@ import (
 	"net/http"
 )
 
+func WriteMessage(rw http.ResponseWriter, status int, message string) {
+	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	rw.WriteHeader(status)
+	rw.Write([]byte(message))
+}
+
 func WriteResponse(rw http.ResponseWriter, status int, response any) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
