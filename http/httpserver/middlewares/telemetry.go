@@ -30,7 +30,7 @@ var (
 )
 
 var (
-	totalRequestsMetric      = metric.MustIntCounter(meter, "http.server.total_requests", "Total number of HTTP Requests made to the server")
+	totalRequestsMetric      = metric.MustIntCounter(meter, "http.server.request.total", "Total number of HTTP Requests made to the server")
 	requestDurationMetric, _ = httpconv.NewServerRequestDuration(meter)
 	requestSizeMetric, _     = httpconv.NewServerRequestBodySize(meter)
 )
