@@ -19,6 +19,7 @@ import (
 	"github.com/lcnascimento/go-kit/http/httpserver/middlewares/internal"
 	"github.com/lcnascimento/go-kit/o11y/baggage"
 	"github.com/lcnascimento/go-kit/o11y/log"
+	"github.com/lcnascimento/go-kit/o11y/metric"
 )
 
 var (
@@ -29,7 +30,7 @@ var (
 )
 
 var (
-	activeRequestsMetric, _  = httpconv.NewServerActiveRequests(meter)
+	totalRequestsMetric      = metric.MustIntCounter(meter, "http.server.total_requests", "Total number of HTTP Requests made to the server")
 	requestDurationMetric, _ = httpconv.NewServerRequestDuration(meter)
 	requestSizeMetric, _     = httpconv.NewServerRequestBodySize(meter)
 )
@@ -103,7 +104,7 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 		attribute.Int(string(semconv.HTTPResponseStatusCodeKey), status),
 	}
 
-	activeRequestsMetric.Add(ctx, 1, method, scheme, attrs...)
+	totalRequestsMetric.Add(ctx, 1, metric.WithAttributes(attrs...))
 	requestDurationMetric.Record(ctx, float64(duration.Milliseconds()), method, scheme, attrs...)
 	requestSizeMetric.Record(ctx, r.ContentLength, method, scheme, attrs...)
 }
