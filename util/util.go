@@ -64,12 +64,12 @@ func CanonicalIDFromUUID(prefix string, u uuid.UUID) CanonicalID {
 func ParseCanonicalID(prefix, s string) (CanonicalID, error) {
 	raw, ok := strings.CutPrefix(s, prefix+"_")
 	if !ok {
-		return CanonicalID{}, fmt.Errorf("domain: id %q must have prefix %q", s, prefix+"_")
+		return CanonicalID{}, ErrInvalidIDPrefix(prefix)
 	}
 
 	u, err := uuid.Parse(raw)
 	if err != nil {
-		return CanonicalID{}, fmt.Errorf("domain: parsing id %q: %w", s, err)
+		return CanonicalID{}, ErrParseID.WithCause(err).WithAttribute("id", s)
 	}
 
 	return CanonicalID{prefix: prefix, uuid: u}, nil

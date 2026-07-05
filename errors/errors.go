@@ -170,7 +170,7 @@ func Code(err error) CodeType {
 // Severity retrieves the relevant SeverityType for the given error based on its Kind.
 func Severity(err error) SeverityType {
 	switch Kind(err) {
-	case KindInvalidInput, KindNotFound, KindCanceled, KindWarn, KindUnprocessable:
+	case KindInvalidInput, KindNotFound, KindCanceled, KindWarn, KindUnprocessable, KindConflict:
 		return SeverityWarn
 	case KindCritical, KindServiceUnavailable:
 		return SeverityCritical
