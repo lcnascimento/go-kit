@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	otelmetric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/semconv/v1.37.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
 
@@ -31,8 +32,11 @@ var (
 
 var (
 	totalRequestsMetric      = metric.MustIntCounter(meter, "http.server.request.total", "Total number of HTTP Requests made to the server")
-	requestDurationMetric, _ = httpconv.NewServerRequestDuration(meter)
 	requestSizeMetric, _     = httpconv.NewServerRequestBodySize(meter)
+	requestDurationMetric, _ = httpconv.NewServerRequestDuration(
+		meter,
+		otelmetric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10),
+	)
 )
 
 func Telemetry(next http.Handler) http.Handler {
@@ -87,8 +91,8 @@ func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string,
 		ctx, operation,
 		log.String(string(semconv.NetworkPeerAddressKey), r.Host),
 		log.String(string(semconv.HTTPRequestMethodKey), r.Method),
-		log.String(string(semconv.HTTPRouteKey), r.URL.String()),
-		log.String(string(semconv.URLTemplateKey), pathTpl),
+		log.String(string(semconv.HTTPRouteKey), pathTpl),
+		log.String(string(semconv.URLPathKey), r.URL.Path),
 		log.String(string(semconv.UserAgentOriginalKey), r.UserAgent()),
 		log.Int(string(semconv.HTTPResponseStatusCodeKey), status),
 	)
@@ -96,26 +100,40 @@ func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string,
 
 func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status int, duration time.Duration) {
 	method := httpconv.RequestMethodAttr(r.Method)
-	scheme := r.URL.Scheme
+
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
 
 	attrs := []attribute.KeyValue{
-		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
 		attribute.String(string(semconv.HTTPRouteKey), pathTpl),
 		attribute.Int(string(semconv.HTTPResponseStatusCodeKey), status),
 	}
 
-	totalRequestsMetric.Add(ctx, 1, metric.WithAttributes(attrs...))
-	requestDurationMetric.Record(ctx, float64(duration.Milliseconds()), method, scheme, attrs...)
-	requestSizeMetric.Record(ctx, r.ContentLength, method, scheme, attrs...)
+	counterAttrs := append([]attribute.KeyValue{
+		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
+	}, attrs...)
+
+	totalRequestsMetric.Add(ctx, 1, metric.WithAttributes(counterAttrs...))
+	requestDurationMetric.Record(ctx, duration.Seconds(), method, scheme, attrs...)
+
+	if r.ContentLength >= 0 {
+		requestSizeMetric.Record(ctx, r.ContentLength, method, scheme, attrs...)
+	}
 }
 
 func trackRequest(ctx context.Context, r *http.Request, pathTpl string, status int, span trace.Span) {
 	bag := baggage.FromContext(ctx)
 
+	if pathTpl != "" {
+		span.SetName(fmt.Sprintf("%s %s", r.Method, pathTpl))
+	}
+
 	attrs := []attribute.KeyValue{
 		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
-		attribute.String(string(semconv.HTTPRouteKey), r.URL.String()),
-		attribute.String(string(semconv.URLTemplateKey), pathTpl),
+		attribute.String(string(semconv.HTTPRouteKey), pathTpl),
+		attribute.String(string(semconv.URLPathKey), r.URL.Path),
 		attribute.Int(string(semconv.HTTPResponseStatusCodeKey), status),
 	}
 
