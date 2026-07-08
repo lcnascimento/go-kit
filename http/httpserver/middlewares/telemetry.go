@@ -41,6 +41,12 @@ var (
 
 func Telemetry(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ping" || r.URL.Path == "/health" {
+			next.ServeHTTP(w, r)
+
+			return
+		}
+
 		ctx := r.Context()
 		start := time.Now()
 
