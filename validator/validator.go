@@ -112,7 +112,7 @@ func (v *Validator) Struct(s any) error {
 
 	payload, err := json.Marshal(s)
 	if err != nil {
-		return errors.ErrCastResponsePayload.WithCause(err)
+		return errors.ErrCastPayload.WithCause(err)
 	}
 
 	return output.WithAttribute("payload", string(payload))

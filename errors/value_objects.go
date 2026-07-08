@@ -38,10 +38,10 @@ var (
 					WithKind(KindInternal).
 					Retryable()
 
-	// ErrCastResponsePayload indicates an issue during response payload casting.
-	ErrCastResponsePayload = New("could not cast response data").
-				WithCode("ERR_CAST_RESPONSE_PAYLOAD").
-				WithKind(KindInternal)
+	// ErrCastPayload indicates an issue during response payload casting.
+	ErrCastPayload = New("could not cast payload").
+			WithCode("ERR_CAST_PAYLOAD").
+			WithKind(KindInternal)
 
 	// ErrInvalidInput occurs when a given input is invalid.
 	ErrInvalidInput = New("invalid input").

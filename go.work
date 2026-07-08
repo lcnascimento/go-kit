@@ -5,6 +5,7 @@ use (
 	./errors
 	./grpc
 	./http
+	./kafka
 	./o11y
 	./temporal
 	./util
