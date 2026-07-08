@@ -16,7 +16,7 @@ func main() {
 	o11y.MustStart(ctx)
 	defer o11y.Shutdown(ctx)
 
-	subscriber := kafka.NewSubscriber[example.Example]("example")
+	subscriber := kafka.NewSubscriber[*example.Example]("example")
 	defer subscriber.Stop(ctx)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -29,7 +29,7 @@ func main() {
 		cancel()
 	}()
 
-	subscriber.Run(ctx, func(ctx context.Context, e example.Example) error {
+	subscriber.Run(ctx, func(ctx context.Context, e *example.Example) error {
 		slog.InfoContext(ctx, e.Message)
 		return nil
 	})

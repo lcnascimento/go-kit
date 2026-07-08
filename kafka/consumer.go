@@ -10,12 +10,12 @@ import (
 	"github.com/lcnascimento/go-kit/errors"
 )
 
-type Subscriber[T any] struct {
+type Subscriber[T Event] struct {
 	topic  string
 	reader kafka.Reader
 }
 
-func NewSubscriber[T any](topic string) *Subscriber[T] {
+func NewSubscriber[T Event](topic string) *Subscriber[T] {
 	const (
 		defaultReadTimeout = 10 * time.Second
 		defaultDialTimeout = 10 * time.Second
@@ -50,12 +50,12 @@ func (s *Subscriber[T]) Run(ctx context.Context, cb func(context.Context, T) err
 			return s.onError(ctx, err)
 		}
 
-		ctx, span := s.onConsumeStart(ctx, msg)
-
 		var value T
 		if err := json.Unmarshal(msg.Value, &value); err != nil {
-			return s.onErrorWithSpan(ctx, err, span)
+			return s.onError(ctx, err)
 		}
+
+		ctx, span := s.onConsumeStart(ctx, value.GetType(), msg)
 
 		if err := cb(ctx, value); err != nil {
 			span.End()

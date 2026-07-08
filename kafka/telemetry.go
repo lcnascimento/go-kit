@@ -61,7 +61,7 @@ func (s *Subscriber[T]) onStop(ctx context.Context, topic string) {
 	logger.Info(ctx, "stopping kafka subscriber", log.String("topic", topic))
 }
 
-func (s *Subscriber[T]) onConsumeStart(ctx context.Context, msg kafka.Message) (context.Context, trace.Span) {
+func (s *Subscriber[T]) onConsumeStart(ctx context.Context, et EventType, msg kafka.Message) (context.Context, trace.Span) {
 	carrier := propagation.MapCarrier{}
 	for _, h := range msg.Headers {
 		carrier.Set(h.Key, string(h.Value))
@@ -70,7 +70,7 @@ func (s *Subscriber[T]) onConsumeStart(ctx context.Context, msg kafka.Message) (
 	propagator := otel.GetTextMapPropagator()
 	wireCtx := propagator.Extract(context.Background(), carrier)
 
-	ctx, span := tracer.Start(ctx, "ConsumeMessage", trace.WithLinks(trace.LinkFromContext(wireCtx)))
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("Consume %s", et), trace.WithLinks(trace.LinkFromContext(wireCtx)))
 	logger.Debug(
 		ctx, "consuming kafka message",
 		log.String("message.topic", msg.Topic),
