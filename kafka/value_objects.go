@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"github.com/lcnascimento/go-kit/env"
-	"github.com/segmentio/kafka-go"
 )
 
 var (
@@ -11,10 +10,17 @@ var (
 )
 
 type (
-	Message      = kafka.Message
 	EventType    string
 	EventVersion string
 )
+
+func (t EventType) String() string {
+	return string(t)
+}
+
+func (t EventVersion) String() string {
+	return string(t)
+}
 
 type Event interface {
 	GetTopic() string

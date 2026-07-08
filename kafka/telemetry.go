@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -60,7 +61,7 @@ func (s *Subscriber[T]) onStop(ctx context.Context, topic string) {
 	logger.Info(ctx, "stopping kafka subscriber", log.String("topic", topic))
 }
 
-func (s *Subscriber[T]) onConsumeStart(ctx context.Context, msg Message) (context.Context, trace.Span) {
+func (s *Subscriber[T]) onConsumeStart(ctx context.Context, msg kafka.Message) (context.Context, trace.Span) {
 	carrier := propagation.MapCarrier{}
 	for _, h := range msg.Headers {
 		carrier.Set(h.Key, string(h.Value))
