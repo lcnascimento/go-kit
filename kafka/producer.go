@@ -15,13 +15,18 @@ type Producer struct {
 }
 
 func NewProducer() *Producer {
-	const defaultWriteTimeout = 10 * time.Second
+	const (
+		defaultWriteTimeout = 10 * time.Second
+		defaultBatchTimeout = 5 * time.Millisecond
+	)
 
 	producer := &Producer{
 		writer: &kafka.Writer{
 			Addr:         kafka.TCP(brokers...),
 			Balancer:     &kafka.LeastBytes{},
 			WriteTimeout: defaultWriteTimeout,
+			BatchTimeout: defaultBatchTimeout,
+			RequiredAcks: kafka.RequireOne,
 			Logger:       newDebugLogger(),
 			ErrorLogger:  newErrorLogger(),
 		},
