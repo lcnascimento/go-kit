@@ -2,6 +2,11 @@ package kafka
 
 import "github.com/lcnascimento/go-kit/errors"
 
-var ErrWriteMessages = errors.New("failed to write message(s) to event stream").
-	WithCode("ERR_WRITE_MESSAGES").
-	Retryable()
+var (
+	ErrWriteMessages = errors.New("failed to write message(s) to event stream").
+		WithCode("ERR_WRITE_MESSAGES").
+		Retryable()
+
+	ErrEnsureTopics = errors.New("failed to ensure kafka topics").
+		WithCode("ERR_ENSURE_TOPICS")
+)
