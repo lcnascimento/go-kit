@@ -81,6 +81,30 @@ func (s *Subscriber[T]) onConsumeStart(ctx context.Context, et EventType, msg ka
 	return ctx, span
 }
 
+func (s *Subscriber[T]) onConsumeBatchStart(ctx context.Context, msgs []kafka.Message) (context.Context, trace.Span) {
+	propagator := otel.GetTextMapPropagator()
+
+	links := make([]trace.Link, 0, len(msgs))
+	for _, msg := range msgs {
+		carrier := propagation.MapCarrier{}
+		for _, h := range msg.Headers {
+			carrier.Set(h.Key, string(h.Value))
+		}
+
+		wireCtx := propagator.Extract(context.Background(), carrier)
+		links = append(links, trace.LinkFromContext(wireCtx))
+	}
+
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("ConsumeBatch %s", s.topic), trace.WithLinks(links...))
+	logger.Debug(
+		ctx, "consuming kafka message batch",
+		log.String("batch.topic", s.topic),
+		log.Int("batch.size", len(msgs)),
+	)
+
+	return ctx, span
+}
+
 func (s *Subscriber[T]) onError(ctx context.Context, err error) error {
 	logger.ErrorBySeverity(ctx, err)
 
