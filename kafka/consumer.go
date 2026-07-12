@@ -27,7 +27,7 @@ func NewSubscriber[T Event](topic string) *Subscriber[T] {
 			Brokers:     brokers,
 			GroupID:     groupID,
 			Topic:       topic,
-			StartOffset: kafka.LastOffset,
+			StartOffset: kafka.FirstOffset,
 			MaxWait:     defaultReadTimeout,
 			Logger:      newDebugLogger(),
 			ErrorLogger: newErrorLogger(),
