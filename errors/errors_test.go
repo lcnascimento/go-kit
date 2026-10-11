@@ -3,6 +3,8 @@ package errors_test
 import (
 	e "errors"
 	"fmt"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -287,6 +289,54 @@ func TestAttributes(t *testing.T) {
 		err = err.WithAttribute("key2", "value2")
 
 		assert.Equal(t, errors.AttributeSet{"key": "value", "key2": "value2"}, errors.Attributes(err))
+	})
+}
+
+func TestCopySemantics(t *testing.T) {
+	t.Run("WithAttribute does not leak into the original or a sibling copy", func(t *testing.T) {
+		base := errors.New("base").WithAttribute("shared", "yes")
+
+		first := base.WithAttribute("first", "1")
+		second := base.WithAttribute("second", "2")
+
+		assert.Equal(t, errors.AttributeSet{"shared": "yes"}, errors.Attributes(base))
+		assert.Equal(t, errors.AttributeSet{"shared": "yes", "first": "1"}, errors.Attributes(first))
+		assert.Equal(t, errors.AttributeSet{"shared": "yes", "second": "2"}, errors.Attributes(second))
+	})
+
+	t.Run("WithCause does not leak into the original or a sibling copy", func(t *testing.T) {
+		base := errors.New("base").WithCause(e.New("cause 1")).WithCause(e.New("cause 2"))
+
+		first := base.WithCause(e.New("first"))
+		second := base.WithCause(e.New("second"))
+
+		assert.Equal(t, []string{"cause 1", "cause 2"}, errors.Reasons(base))
+		assert.Equal(t, []string{"cause 1", "cause 2", "first"}, errors.Reasons(first))
+		assert.Equal(t, []string{"cause 1", "cause 2", "second"}, errors.Reasons(second))
+	})
+
+	t.Run("concurrent copies of a shared sentinel do not race", func(t *testing.T) {
+		sentinel := errors.New("sentinel").WithCause(e.New("cause 1")).WithCause(e.New("cause 2"))
+
+		const workers = 64
+
+		results := make([]error, workers)
+
+		var wg sync.WaitGroup
+		for i := range workers {
+			wg.Go(func() {
+				id := strconv.Itoa(i)
+				results[i] = sentinel.WithCause(e.New(id)).WithAttribute("id", id)
+			})
+		}
+		wg.Wait()
+
+		for i, err := range results {
+			id := strconv.Itoa(i)
+			assert.Equal(t, errors.AttributeSet{"id": id}, errors.Attributes(err))
+			assert.Equal(t, []string{"cause 1", "cause 2", id}, errors.Reasons(err))
+		}
+		assert.Equal(t, errors.AttributeSet{}, errors.Attributes(sentinel))
 	})
 }
 
