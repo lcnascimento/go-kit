@@ -91,7 +91,7 @@ func (s *ParserTestSuite) TestParser() {
 		age := 35
 
 		config := MyCustomTestConfig{}
-		err := env.Parse(&config, env.WithCustomTypeParser(NewMyEmail), env.FromFiles("sample/.env"))
+		err := env.Parse(&config, env.WithCustomTypeParser(NewMyEmail), env.FromFiles("example/.env"))
 		s.require.NoError(err)
 		s.require.Equal(name, config.Name)
 		s.require.Equal(age, config.Age)
