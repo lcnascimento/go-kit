@@ -30,10 +30,11 @@ func New(opts ...Option) (*Validator, error) {
 	v := &Validator{
 		Validate: validator.New(),
 		tags: map[string]Tag{
-			"required":    new(TagRequired),
-			"required_if": new(TagRequired),
-			"email":       new(TagEmail),
-			"phone":       new(TagPhone),
+			"required":     new(TagRequired),
+			"required_if":  new(TagRequired),
+			"email":        new(TagEmail),
+			"phone":        new(TagPhone),
+			"canonical_id": new(TagCanonicalID),
 		},
 	}
 

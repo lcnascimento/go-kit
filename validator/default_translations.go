@@ -22,6 +22,10 @@ func registerBracketedDefaults(v *Validator) error {
 		return err
 	}
 
+	if err := registerParamBracketed(v); err != nil {
+		return err
+	}
+
 	return registerKindBracketed(v)
 }
 
@@ -56,6 +60,32 @@ func registerSimpleBracketed(v *Validator) error {
 
 		transFn := func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T(name, namespaceOf(fe))
+
+			return t
+		}
+
+		if err := v.RegisterTranslation(name, v.trans, register, transFn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+var paramBracketedTemplates = map[string]string{
+	"canonical_id": "[{0}] must be a valid canonical id with prefix {1}",
+}
+
+func registerParamBracketed(v *Validator) error {
+	for tag, template := range paramBracketedTemplates {
+		name, tmpl := tag, template
+
+		register := func(ut ut.Translator) error {
+			return ut.Add(name, tmpl, true)
+		}
+
+		transFn := func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T(name, namespaceOf(fe), fe.Param())
 
 			return t
 		}
