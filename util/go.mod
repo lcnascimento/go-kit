@@ -1,6 +1,6 @@
 module github.com/lcnascimento/go-kit/util
 
-go 1.26.4
+go 1.27.2
 
 require (
 	github.com/google/uuid v1.6.0

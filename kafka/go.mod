@@ -1,6 +1,6 @@
 module github.com/lcnascimento/go-kit/kafka
 
-go 1.26.4
+go 1.27.2
 
 replace github.com/lcnascimento/go-kit/env => ../env
 
