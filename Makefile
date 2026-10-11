@@ -55,5 +55,5 @@ vuln-check:
 .PHONY: test.unit
 test.unit:
 	@echo "===> Running Unit Tests"
-	@go list -m | xargs go test -cover
+	@go list -f '{{.Dir}}/...' -m | xargs go test -short -cover
 	@echo "===> Unit Tests passed"
