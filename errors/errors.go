@@ -3,6 +3,7 @@ package errors
 import (
 	e "errors"
 	"fmt"
+	"slices"
 )
 
 // CustomError is an error that encodes useful information about a given error.
@@ -104,14 +105,17 @@ func (ce custom) WithCode(code CodeType) CustomError {
 // WithCause return a copy of the CustomError with the given Cause attached as the
 // last internal error of this CustomError.
 func (ce custom) WithCause(cause error) CustomError {
-	ce.errs = append(ce.errs, cause)
+	ce.errs = append(slices.Clip(ce.errs), cause)
 
 	return ce
 }
 
 // WithAttribute returns a copy of the CustomError with the given Attributes filled.
 func (ce custom) WithAttribute(key, value string) CustomError {
-	ce.attributes[key] = value
+	attributes := make(AttributeSet, len(ce.attributes)+1)
+	attributes.Merge(ce.attributes)
+	attributes[key] = value
+	ce.attributes = attributes
 
 	return ce
 }
