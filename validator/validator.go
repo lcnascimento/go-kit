@@ -3,7 +3,6 @@ package validator
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 	"time"
 
 	en "github.com/go-playground/locales/en"
@@ -30,10 +29,11 @@ func New(opts ...Option) (*Validator, error) {
 	v := &Validator{
 		Validate: validator.New(),
 		tags: map[string]Tag{
-			"required":    new(TagRequired),
-			"required_if": new(TagRequired),
-			"email":       new(TagEmail),
-			"phone":       new(TagPhone),
+			"required":     new(TagRequired),
+			"required_if":  new(TagRequired),
+			"email":        new(TagEmail),
+			"phone":        new(TagPhone),
+			"canonical_id": new(TagCanonicalID),
 		},
 	}
 
@@ -88,8 +88,7 @@ func (v *Validator) registerTag(name string, tag Tag) error {
 			strValue = reflect.ValueOf(fe.Value()).String()
 		}
 
-		namespace := strings.Join(strings.Split(fe.Namespace(), ".")[1:], ".")
-		t, _ := ut.T(name, namespace, strValue, fe.Param())
+		t, _ := ut.T(name, namespaceOf(fe), strValue, fe.Param())
 
 		return t
 	}

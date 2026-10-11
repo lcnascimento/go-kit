@@ -22,18 +22,32 @@ func registerBracketedDefaults(v *Validator) error {
 		return err
 	}
 
+	if err := registerParamBracketed(v); err != nil {
+		return err
+	}
+
 	return registerKindBracketed(v)
 }
 
 func namespaceOf(fe validator.FieldError) string {
-	parts := strings.Split(fe.Namespace(), ".")
+	parts := strings.Split(fe.Namespace(), ".")[1:]
 
-	namespace := strings.Join(parts[1:], ".")
-	if namespace == "" {
-		namespace = fe.Field()
+	segments := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != embeddedSegment {
+			segments = append(segments, part)
+		}
 	}
 
-	return namespace
+	if len(segments) > 0 {
+		return strings.Join(segments, ".")
+	}
+
+	if fe.Field() == embeddedSegment {
+		return fe.StructField()
+	}
+
+	return fe.Field()
 }
 
 var simpleBracketedTemplates = map[string]string{
@@ -56,6 +70,32 @@ func registerSimpleBracketed(v *Validator) error {
 
 		transFn := func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T(name, namespaceOf(fe))
+
+			return t
+		}
+
+		if err := v.RegisterTranslation(name, v.trans, register, transFn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+var paramBracketedTemplates = map[string]string{
+	"canonical_id": "[{0}] must be a valid canonical id with prefix {1}",
+}
+
+func registerParamBracketed(v *Validator) error {
+	for tag, template := range paramBracketedTemplates {
+		name, tmpl := tag, template
+
+		register := func(ut ut.Translator) error {
+			return ut.Add(name, tmpl, true)
+		}
+
+		transFn := func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T(name, namespaceOf(fe), fe.Param())
 
 			return t
 		}
