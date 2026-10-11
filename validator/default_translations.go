@@ -124,11 +124,11 @@ func registerKindBracketed(v *Validator) error {
 	return nil
 }
 
-func translateKindAware(ut ut.Translator, fe validator.FieldError, kt kindBracketedTag) string {
+func translateKindAware(trans ut.Translator, fe validator.FieldError, kt kindBracketedTag) string {
 	namespace := namespaceOf(fe)
 
 	kind := fe.Kind()
-	if kind == reflect.Ptr {
+	if kind == reflect.Pointer {
 		kind = fe.Type().Elem().Kind()
 	}
 
@@ -145,8 +145,8 @@ func translateKindAware(ut ut.Translator, fe validator.FieldError, kt kindBracke
 			return namespace + " " + kt.name + " " + fe.Param()
 		}
 
-		c, _ := ut.C(kt.name+"-string-character", f64, digits, ut.FmtNumber(f64, digits))
-		t, _ := ut.T(kt.name+"-string", namespace, c)
+		c, _ := trans.C(kt.name+"-string-character", f64, digits, trans.FmtNumber(f64, digits))
+		t, _ := trans.T(kt.name+"-string", namespace, c)
 
 		return t
 
@@ -156,14 +156,14 @@ func translateKindAware(ut ut.Translator, fe validator.FieldError, kt kindBracke
 			return namespace + " " + kt.name + " " + fe.Param()
 		}
 
-		c, _ := ut.C(kt.name+"-items-item", f64, digits, ut.FmtNumber(f64, digits))
-		t, _ := ut.T(kt.name+"-items", namespace, c)
+		c, _ := trans.C(kt.name+"-items-item", f64, digits, trans.FmtNumber(f64, digits))
+		t, _ := trans.T(kt.name+"-items", namespace, c)
 
 		return t
 
 	default:
 		if fe.Type() == reflect.TypeOf(time.Duration(0)) {
-			t, _ := ut.T(kt.name+"-number", namespace, fe.Param())
+			t, _ := trans.T(kt.name+"-number", namespace, fe.Param())
 
 			return t
 		}
@@ -173,7 +173,7 @@ func translateKindAware(ut ut.Translator, fe validator.FieldError, kt kindBracke
 			return namespace + " " + kt.name + " " + fe.Param()
 		}
 
-		t, _ := ut.T(kt.name+"-number", namespace, ut.FmtNumber(f64, digits))
+		t, _ := trans.T(kt.name+"-number", namespace, trans.FmtNumber(f64, digits))
 
 		return t
 	}

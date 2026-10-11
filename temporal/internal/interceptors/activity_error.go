@@ -14,7 +14,7 @@ func NewActivityError() interceptor.WorkerInterceptor {
 	return &activity{}
 }
 
-func (i *activity) InterceptActivity(ctx context.Context, next interceptor.ActivityInboundInterceptor) interceptor.ActivityInboundInterceptor {
+func (i *activity) InterceptActivity(_ context.Context, next interceptor.ActivityInboundInterceptor) interceptor.ActivityInboundInterceptor {
 	return &activityInboundInterceptor{next: next}
 }
 

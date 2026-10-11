@@ -51,43 +51,50 @@ func New(opts ...Option) (*Validator, error) {
 	}
 
 	for name, tag := range v.tags {
-		if alias := tag.Alias(); alias != "" {
-			v.RegisterAlias(name, alias)
-		}
-
-		if validate := tag.Validate(); validate != nil {
-			if err := v.RegisterValidation(name, validate); err != nil {
-				return nil, err
-			}
-		}
-
-		if translate := tag.Translate(); translate != "" {
-			register := func(ut ut.Translator) error {
-				return ut.Add(name, translate, true)
-			}
-
-			transFn := func(ut ut.Translator, fe validator.FieldError) string {
-				var strValue string
-
-				if t, ok := fe.Value().(time.Time); ok {
-					strValue = t.Format("2006-01-02")
-				} else {
-					strValue = reflect.ValueOf(fe.Value()).String()
-				}
-
-				namespace := strings.Join(strings.Split(fe.Namespace(), ".")[1:], ".")
-				t, _ := ut.T(name, namespace, strValue, fe.Param())
-
-				return t
-			}
-
-			if err := v.RegisterTranslation(name, v.trans, register, transFn); err != nil {
-				return nil, err
-			}
+		if err := v.registerTag(name, tag); err != nil {
+			return nil, err
 		}
 	}
 
 	return v, nil
+}
+
+func (v *Validator) registerTag(name string, tag Tag) error {
+	if alias := tag.Alias(); alias != "" {
+		v.RegisterAlias(name, alias)
+	}
+
+	if validate := tag.Validate(); validate != nil {
+		if err := v.RegisterValidation(name, validate); err != nil {
+			return err
+		}
+	}
+
+	translate := tag.Translate()
+	if translate == "" {
+		return nil
+	}
+
+	register := func(ut ut.Translator) error {
+		return ut.Add(name, translate, true)
+	}
+
+	transFn := func(ut ut.Translator, fe validator.FieldError) string {
+		var strValue string
+
+		if t, ok := fe.Value().(time.Time); ok {
+			strValue = t.Format("2006-01-02")
+		} else {
+			strValue = reflect.ValueOf(fe.Value()).String()
+		}
+
+		namespace := strings.Join(strings.Split(fe.Namespace(), ".")[1:], ".")
+		t, _ := ut.T(name, namespace, strValue, fe.Param())
+
+		return t
+	}
+
+	return v.RegisterTranslation(name, v.trans, register, transFn)
 }
 
 // Struct validates a structs exposed fields, and automatically validates nested structs, unless otherwise specified.

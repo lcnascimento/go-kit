@@ -15,7 +15,9 @@ import (
 
 const defaultReadHeaderTimeout = 5 * time.Second
 
-var port = env.Get("PORT", env.WithDefaultValue(3000))
+const defaultPort = 3000
+
+var port = env.Get("PORT", env.WithDefaultValue(defaultPort))
 
 type Server struct {
 	server *http.Server
@@ -54,19 +56,18 @@ func (s *Server) Start(cb func(router *mux.Router) error) error {
 	s.onStart(port)
 
 	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return s.onError(err)
+		return s.onError(context.Background(), err)
 	}
 
 	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.onShutdown()
+	s.onShutdown(ctx)
 
-	err := s.server.Shutdown(ctx)
-	if err != nil {
-		s.onError(err)
+	if err := s.server.Shutdown(ctx); err != nil {
+		return s.onError(ctx, err)
 	}
 
-	return err
+	return nil
 }

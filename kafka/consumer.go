@@ -55,7 +55,7 @@ func (s *Subscriber[T]) Run(ctx context.Context, cb func(context.Context, T) err
 			return s.onError(ctx, err)
 		}
 
-		ctx, span := s.onConsumeStart(ctx, value.GetType(), msg)
+		ctx, span := s.onConsumeStart(ctx, value.GetType(), &msg)
 
 		if err := cb(ctx, value); err != nil {
 			span.End()
@@ -121,7 +121,7 @@ func (s *Subscriber[T]) RunInBatch(ctx context.Context, cb func(context.Context,
 		}
 
 		if ctx.Err() != nil {
-			return nil
+			return nil //nolint:nilerr // A canceled context is the subscriber's normal stop signal.
 		}
 
 		if len(msgs) == 0 {

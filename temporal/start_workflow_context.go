@@ -76,7 +76,7 @@ func StartWorkflowOptions(wID, queue string, opts ...StartWorkflowContextOption)
 		opt(options)
 	}
 
-	attrs := make([]temporal.SearchAttributeUpdate, 0)
+	attrs := make([]temporal.SearchAttributeUpdate, 0, len(options.searchAttributes))
 	for k, v := range options.searchAttributes {
 		attrs = append(attrs, temporal.NewSearchAttributeKeyString(k).ValueSet(v))
 	}

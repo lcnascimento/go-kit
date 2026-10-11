@@ -1,4 +1,3 @@
-//nolint:revive // OK
 package log
 
 import (

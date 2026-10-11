@@ -23,8 +23,6 @@ const pkg = "github.com/lcnascimento/go-kit/o11y"
 var lp *log.LoggerProvider
 
 // Start starts the log component.
-//
-//nolint:gosec // OK with overflow
 func Start(ctx context.Context, core slog.Handler, resolver AttrResolver) (err error) {
 	cfg := global.Config()
 
@@ -42,16 +40,7 @@ func Start(ctx context.Context, core slog.Handler, resolver AttrResolver) (err e
 		cfg.LogsExporter = config.LogsExporterStdout
 	}
 
-	var exporter log.Exporter
-	switch cfg.LogsExporter {
-	case config.LogsExporterOTLP:
-		exporter, err = exporters.OtlpGRPC(ctx)
-	case config.LogsExporterStdout:
-		exporter, err = exporters.Stdout()
-	default:
-		return errors.New("invalid log exporter: %s", cfg.LogsExporter)
-	}
-
+	exporter, err := newExporter(ctx, cfg.LogsExporter)
 	if err != nil {
 		return err
 	}
@@ -105,4 +94,15 @@ func Shutdown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func newExporter(ctx context.Context, kind config.LogsExporter) (log.Exporter, error) {
+	switch kind {
+	case config.LogsExporterOTLP:
+		return exporters.OtlpGRPC(ctx)
+	case config.LogsExporterStdout:
+		return exporters.Stdout()
+	default:
+		return nil, errors.New("invalid log exporter: %s", kind)
+	}
 }

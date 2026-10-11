@@ -1,4 +1,3 @@
-//nolint:mnd // OK
 package main
 
 import (

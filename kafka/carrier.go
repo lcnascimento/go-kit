@@ -16,7 +16,7 @@ func (c messageCarrier) Get(key string) string {
 	return ""
 }
 
-func (c messageCarrier) Set(key string, value string) {
+func (c messageCarrier) Set(key, value string) {
 	for i, h := range c.msg.Headers {
 		if h.Key == key {
 			c.msg.Headers[i].Value = []byte(value)
