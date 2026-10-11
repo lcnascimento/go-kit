@@ -30,14 +30,24 @@ func registerBracketedDefaults(v *Validator) error {
 }
 
 func namespaceOf(fe validator.FieldError) string {
-	parts := strings.Split(fe.Namespace(), ".")
+	parts := strings.Split(fe.Namespace(), ".")[1:]
 
-	namespace := strings.Join(parts[1:], ".")
-	if namespace == "" {
-		namespace = fe.Field()
+	segments := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != embeddedSegment {
+			segments = append(segments, part)
+		}
 	}
 
-	return namespace
+	if len(segments) > 0 {
+		return strings.Join(segments, ".")
+	}
+
+	if fe.Field() == embeddedSegment {
+		return fe.StructField()
+	}
+
+	return fe.Field()
 }
 
 var simpleBracketedTemplates = map[string]string{
