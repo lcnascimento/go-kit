@@ -1,6 +1,6 @@
 module github.com/lcnascimento/go-kit/o11y
 
-go 1.26.4
+go 1.27.2
 
 replace github.com/lcnascimento/go-kit/env => ../env
 
