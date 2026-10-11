@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/lcnascimento/go-kit/kafka"
 	"github.com/lcnascimento/go-kit/kafka/example"
@@ -24,7 +25,7 @@ func main() {
 
 	go func() {
 		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt, os.Kill)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 		<-sigCh
 		cancel()
 	}()
