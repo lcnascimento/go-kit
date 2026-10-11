@@ -1,12 +1,17 @@
 package env
 
 import (
+	"errors"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// errUnexpectedParsedType means a built-in parser produced a value that is not of the requested type,
+// as happens for named types such as `type Name string`.
+var errUnexpectedParsedType = errors.New("env: parsed value does not match the requested type")
 
 // builtInParsers is a map of built-in parsers for the basic types.
 var builtInParsers = map[reflect.Kind]func(string) (any, error){
@@ -89,7 +94,7 @@ func (c *getterConfig[T]) getParser() func(string) (T, error) {
 	}
 
 	kind := c.genericType.Kind()
-	if kind == reflect.Ptr {
+	if kind == reflect.Pointer {
 		return nil
 	}
 
@@ -101,8 +106,17 @@ func (c *getterConfig[T]) getParser() func(string) (T, error) {
 	// adapt parser func
 	return func(v string) (T, error) {
 		parsedValue, err := parser(v)
+		if err != nil {
+			var zero T
+			return zero, err
+		}
 
-		return parsedValue.(T), err
+		value, ok := parsedValue.(T)
+		if !ok {
+			return value, errUnexpectedParsedType
+		}
+
+		return value, nil
 	}
 }
 

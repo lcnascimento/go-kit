@@ -8,12 +8,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: 'go.work'
+        cache-dependency-path: '**/go.sum'
 
     - name: Run linter
       run: make lint
@@ -23,12 +24,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: 'go.work'
+        cache-dependency-path: '**/go.sum'
 
     - name: Run vulnerability checks
       run: make vuln-check
@@ -38,12 +40,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Fetch code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: 'go.work'
+        cache-dependency-path: '**/go.sum'
 
     - name: Download dependencies
       run: go mod download

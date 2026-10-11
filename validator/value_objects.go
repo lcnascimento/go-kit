@@ -48,6 +48,6 @@ func (t TagPhone) Translate() string {
 	return "[{0}] must be a valid E.164 formatted phone number"
 }
 
-func (p TagPhone) Alias() string {
+func (t TagPhone) Alias() string {
 	return "e164"
 }

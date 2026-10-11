@@ -27,7 +27,6 @@ func (s *ParserTestSuite) SetupTest() {
 }
 
 func (s *ParserTestSuite) TestParser() {
-
 	s.Run("Success Parse", func() {
 		name := "Han-Solo"
 		age := 35
@@ -91,13 +90,12 @@ func (s *ParserTestSuite) TestParser() {
 		age := 35
 
 		config := MyCustomTestConfig{}
-		err := env.Parse(&config, env.WithCustomTypeParser(NewMyEmail), env.FromFiles("sample/.env"))
+		err := env.Parse(&config, env.WithCustomTypeParser(NewMyEmail), env.FromFiles("example/.env"))
 		s.require.NoError(err)
 		s.require.Equal(name, config.Name)
 		s.require.Equal(age, config.Age)
 		s.require.Equal(MyEmail{Name: "han-solo", Domain: "rebels.org"}, config.Email)
 	})
-
 }
 
 type MySimpleTestConfig struct {
@@ -128,7 +126,6 @@ func NewMyEmail(email string) (MyEmail, error) {
 }
 
 func (s *ParserTestSuite) TestDefaultParser() {
-
 	s.Run("Success Parse URL", func() {
 		name := "Han-Solo"
 		social := "https://instarebel.org/han-solo?weapon=blaster"
@@ -151,7 +148,7 @@ func (s *ParserTestSuite) TestDefaultParser() {
 	s.Run("Error Invalid URL", func() {
 		name := "Han-Solo"
 		social := "https://%inv^&#"
-		_, err := url.Parse(social)
+		_, err := url.Parse(social) //nolint:staticcheck // SA1007: the URL is invalid on purpose.
 		s.require.Error(err)
 
 		s.require.NoError(os.Setenv("NAME", name))

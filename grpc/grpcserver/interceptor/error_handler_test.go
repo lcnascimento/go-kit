@@ -55,7 +55,7 @@ func TestErrorHandler(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
-			handler := func(ctx context.Context, req any) (any, error) {
+			handler := func(context.Context, any) (any, error) {
 				return nil, tc.err
 			}
 

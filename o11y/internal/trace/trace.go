@@ -1,4 +1,3 @@
-//nolint:revive // OK
 package trace
 
 import (
@@ -27,45 +26,22 @@ func Start(ctx context.Context) (err error) {
 		return nil
 	}
 
-	var exporter trace.SpanExporter
-	switch cfg.TracesExporter {
-	case config.TracesExporterOTLP:
-		exporter, err = exporters.OtlpGRPC(ctx)
-	case config.TracesExporterStdout:
-		exporter, err = exporters.Stdout()
-	default:
-		return errors.New("invalid trace exporter: %s", cfg.TracesExporter)
-	}
-
+	exporter, err := newExporter(ctx, cfg.TracesExporter)
 	if err != nil {
 		return err
 	}
 
-	var sampler trace.Sampler
-	switch cfg.TraceSampler {
-	case config.TraceSamplerAlwaysOff:
-		sampler = trace.NeverSample()
-	case config.TraceSamplerAlwaysOn:
-		sampler = trace.AlwaysSample()
-	case config.TraceSamplerParentBasedAlwaysOn:
-		sampler = trace.ParentBased(trace.AlwaysSample())
-	case config.TraceSamplerParentBasedAlwaysOff:
-		sampler = trace.ParentBased(trace.NeverSample())
-	case config.TraceSamplerParentBasedTraceIDRatio:
-		sampler = trace.ParentBased(trace.TraceIDRatioBased(cfg.TraceSamplerArg))
-	}
-
 	spanLimits := trace.SpanLimits{
-		AttributeCountLimit:         int(cfg.SpanAttributeCountLimit),      //nolint:gosec // OK with overflow
-		AttributePerEventCountLimit: int(cfg.SpanEventAttributeCountLimit), //nolint:gosec // OK with overflow
-		AttributePerLinkCountLimit:  int(cfg.SpanLinkAttributeCountLimit),  //nolint:gosec // OK with overflow
-		EventCountLimit:             int(cfg.SpanEventCountLimit),          //nolint:gosec // OK with overflow
-		LinkCountLimit:              int(cfg.SpanLinkCountLimit),           //nolint:gosec // OK with overflow
+		AttributeCountLimit:         int(cfg.SpanAttributeCountLimit),
+		AttributePerEventCountLimit: int(cfg.SpanEventAttributeCountLimit),
+		AttributePerLinkCountLimit:  int(cfg.SpanLinkAttributeCountLimit),
+		EventCountLimit:             int(cfg.SpanEventCountLimit),
+		LinkCountLimit:              int(cfg.SpanLinkCountLimit),
 	}
 
-	attrValueLengthLimit := int(cfg.AttributeValueLengthLimit) //nolint:gosec // OK with overflow
+	attrValueLengthLimit := int(cfg.AttributeValueLengthLimit)
 	if cfg.SpanAttributeValueLengthLimit > 0 {
-		attrValueLengthLimit = int(cfg.SpanAttributeValueLengthLimit) //nolint:gosec // OK with overflow
+		attrValueLengthLimit = int(cfg.SpanAttributeValueLengthLimit)
 	}
 	if attrValueLengthLimit > 0 {
 		spanLimits.AttributeValueLengthLimit = attrValueLengthLimit
@@ -76,12 +52,12 @@ func Start(ctx context.Context) (err error) {
 	processor := trace.NewBatchSpanProcessor(
 		exporter,
 		trace.WithBatchTimeout(cfg.BspExportTimeout),
-		trace.WithMaxQueueSize(int(cfg.BspMaxQueueSize)),             //nolint:gosec // OK with overflow
-		trace.WithMaxExportBatchSize(int(cfg.BspMaxExportBatchSize)), //nolint:gosec // OK with overflow
+		trace.WithMaxQueueSize(int(cfg.BspMaxQueueSize)),
+		trace.WithMaxExportBatchSize(int(cfg.BspMaxExportBatchSize)),
 	)
 
 	tp = trace.NewTracerProvider(
-		trace.WithSampler(sampler),
+		trace.WithSampler(newSampler(cfg.TraceSampler, cfg.TraceSamplerArg)),
 		trace.WithSpanProcessor(baggageProcessor),
 		trace.WithSpanProcessor(processor),
 		trace.WithRawSpanLimits(spanLimits),
@@ -103,4 +79,33 @@ func Shutdown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func newExporter(ctx context.Context, kind config.TracesExporter) (trace.SpanExporter, error) {
+	switch kind {
+	case config.TracesExporterOTLP:
+		return exporters.OtlpGRPC(ctx)
+	case config.TracesExporterStdout:
+		return exporters.Stdout()
+	default:
+		return nil, errors.New("invalid trace exporter: %s", kind)
+	}
+}
+
+func newSampler(kind config.TraceSampler, ratio float64) trace.Sampler {
+	switch kind {
+	case config.TraceSamplerAlwaysOff:
+		return trace.NeverSample()
+	case config.TraceSamplerAlwaysOn:
+		return trace.AlwaysSample()
+	case config.TraceSamplerParentBasedAlwaysOn:
+		return trace.ParentBased(trace.AlwaysSample())
+	case config.TraceSamplerParentBasedAlwaysOff:
+		return trace.ParentBased(trace.NeverSample())
+	case config.TraceSamplerParentBasedTraceIDRatio:
+		return trace.ParentBased(trace.TraceIDRatioBased(ratio))
+	default:
+		// nil keeps the SDK default.
+		return nil
+	}
 }

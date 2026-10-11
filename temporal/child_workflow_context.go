@@ -81,7 +81,7 @@ func ChildWorkflowContext(ctx workflow.Context, wID string, opts ...ChildWorkflo
 		opt(options)
 	}
 
-	attrs := make([]temporal.SearchAttributeUpdate, 0)
+	attrs := make([]temporal.SearchAttributeUpdate, 0, len(options.searchAttributes))
 	for k, v := range options.searchAttributes {
 		attrs = append(attrs, temporal.NewSearchAttributeKeyString(k).ValueSet(v))
 	}

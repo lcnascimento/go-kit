@@ -35,6 +35,7 @@ var (
 	requestSizeMetric, _     = httpconv.NewServerRequestBodySize(meter)
 	requestDurationMetric, _ = httpconv.NewServerRequestDuration(
 		meter,
+		//nolint:mnd // Histogram bucket boundaries, in seconds.
 		otelmetric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10),
 	)
 )
@@ -130,7 +131,7 @@ func trackRequest(ctx context.Context, r *http.Request, pathTpl string, status i
 		span.SetName(fmt.Sprintf("%s %s", r.Method, pathTpl))
 	}
 
-	attrs := []attribute.KeyValue{
+	attrs := []attribute.KeyValue{ //nolint:prealloc // Baggage is small; a hand-counted capacity is not worth it.
 		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
 		attribute.String(string(semconv.HTTPRouteKey), pathTpl),
 		attribute.String(string(semconv.URLPathKey), r.URL.Path),

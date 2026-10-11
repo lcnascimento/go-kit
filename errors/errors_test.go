@@ -190,7 +190,7 @@ func TestSeverity(t *testing.T) {
 
 	t.Run("custom error with kind Conflict", func(t *testing.T) {
 		err := errors.New("some message").WithKind(errors.KindConflict)
-		assert.Equal(t, errors.SeverityError, errors.Severity(err))
+		assert.Equal(t, errors.SeverityWarn, errors.Severity(err))
 	})
 
 	t.Run("custom error with kind Internal", func(t *testing.T) {

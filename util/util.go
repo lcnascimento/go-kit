@@ -96,12 +96,16 @@ func RandomEmail() string {
 
 // RandomPhone generate a random Brazilian phone.
 func RandomPhone() string {
-	return fmt.Sprintf("+55119%08d", rand.IntN(100_000_000))
+	const subscriberNumbers = 100_000_000 // Eight digits after the +55 11 9 prefix.
+
+	return fmt.Sprintf("+55119%08d", rand.IntN(subscriberNumbers))
 }
 
 // RandomPastTime generate a random past Time.
 func RandomPastTime() time.Time {
-	offset := time.Duration(rand.IntN(30*24*60)) * time.Minute
+	const window = 30 * 24 * time.Hour
+
+	offset := time.Duration(rand.Int64N(int64(window/time.Minute))) * time.Minute
 
 	return time.Now().UTC().Add(-offset).Truncate(time.Millisecond)
 }
@@ -121,8 +125,10 @@ func SafeValue[T any](v *T) T {
 	return *v
 }
 
-var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+var (
+	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
+)
 
 func ToSnakeCase(str string) string {
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")

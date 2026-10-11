@@ -48,7 +48,7 @@ func (c *client) onRequestStart(ctx context.Context, host, path, method string) 
 func (c *client) onRequestEnd(ctx context.Context, host, path, method string, status int, start time.Time, span trace.Span) {
 	latency := time.Since(start).Milliseconds()
 
-	attrs := []attribute.KeyValue{
+	attrs := []attribute.KeyValue{ //nolint:prealloc // A single later append; a hand-counted capacity is not worth it.
 		attribute.String(string(semconv.NetworkPeerAddressKey), host),
 		attribute.String(string(semconv.HTTPRequestMethodKey), method),
 		attribute.String(string(semconv.HTTPRouteKey), path),

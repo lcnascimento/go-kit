@@ -26,7 +26,6 @@ type DeathStarConfig struct {
 }
 
 func GetPlanetParamsWithoutRequired() {
-
 	cfg := &PlanetParams{}
 	if err := env.Parse(cfg); err != nil {
 		panic(err)
@@ -38,7 +37,6 @@ func GetPlanetParamsWithoutRequired() {
 }
 
 func GetPlanetParams() {
-
 	_ = os.Setenv("PLANET_NAME", "Coruscant")
 	_ = os.Setenv("PLANET_SUNS", "1")
 
@@ -53,7 +51,6 @@ func GetPlanetParams() {
 }
 
 func GetDeathStarConfigWithEnvs() {
-
 	_ = os.Setenv("PLANET_NAME", "Tatooine")
 	_ = os.Setenv("PLANET_SUNS", "2")
 	_ = os.Setenv("COMMANDER_NAME", "Governor Tarkin")
@@ -73,12 +70,13 @@ func GetDeathStarConfigWithEnvs() {
 
 	slog.Info("DeathStarConfig", slog.Any("config", cfg))
 
-	// output INFO DeathStarConfig config="&{TargetPlanet:{Name:Tatooine Suns:2} CommanderName:Governor Tarkin ShootPosition:{Latitude:123.456 Longitude:789.012 Altitude:345.678}}"
+	// output INFO DeathStarConfig config="&{TargetPlanet:{Name:Tatooine Suns:2} CommanderName:Governor Tarkin
+	// ShootPosition:{Latitude:123.456 Longitude:789.012 Altitude:345.678}}"
 }
 
 func GetDeathStarConfigFromFile() {
 	cfg := &DeathStarConfig{}
-	if err := env.Parse(cfg, env.FromFiles("sample/.env")); err != nil {
+	if err := env.Parse(cfg, env.FromFiles("example/.env")); err != nil {
 		panic(err)
 	}
 

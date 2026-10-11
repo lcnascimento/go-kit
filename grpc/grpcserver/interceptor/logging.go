@@ -32,9 +32,8 @@ func UnaryLogging() grpc.UnaryServerInterceptor {
 			log.String("latency", latency),
 		}
 
-		peer, ok := peer.FromContext(ctx)
-		if ok {
-			attrs = append(attrs, log.String("peer_ip", peer.Addr.String()))
+		if p, ok := peer.FromContext(ctx); ok {
+			attrs = append(attrs, log.String("peer_ip", p.Addr.String()))
 		}
 
 		msg := fmt.Sprintf("RPC %s", info.FullMethod)
@@ -60,9 +59,8 @@ func StreamLogging() grpc.StreamServerInterceptor {
 			log.String("latency", latency),
 		}
 
-		peer, ok := peer.FromContext(ctx)
-		if ok {
-			attrs = append(attrs, log.String("peer_ip", peer.Addr.String()))
+		if p, ok := peer.FromContext(ctx); ok {
+			attrs = append(attrs, log.String("peer_ip", p.Addr.String()))
 		}
 
 		msg := fmt.Sprintf("RPC %s", info.FullMethod)

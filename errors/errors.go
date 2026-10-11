@@ -110,8 +110,6 @@ func (ce custom) WithCause(cause error) CustomError {
 }
 
 // WithAttribute returns a copy of the CustomError with the given Attributes filled.
-//
-//nolint:gocritic // Ok.
 func (ce custom) WithAttribute(key, value string) CustomError {
 	ce.attributes[key] = value
 
@@ -222,9 +220,10 @@ func IsRetryable(err error) bool {
 
 // Reasons returns all the reasons that led to the creation of the given error.
 func Reasons(err error) []string {
-	reasons := []string{}
+	inners := Unwrap(err)
+	reasons := make([]string, 0, len(inners))
 
-	for _, inner := range Unwrap(err) {
+	for _, inner := range inners {
 		reasons = append(reasons, innerReasons(inner, false)...)
 	}
 
@@ -238,9 +237,10 @@ func Reasons(err error) []string {
 // SafeReasons returns all the reasons that led to the creation of the given error.
 // It does not exposes non CustomErrors as reasons, to prevent exposing internal details.
 func SafeReasons(err error) []string {
-	reasons := []string{}
+	inners := Unwrap(err)
+	reasons := make([]string, 0, len(inners))
 
-	for _, inner := range Unwrap(err) {
+	for _, inner := range inners {
 		reasons = append(reasons, innerReasons(inner, true)...)
 	}
 

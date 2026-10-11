@@ -20,7 +20,7 @@ type Profiler interface {
 }
 
 // Start starts the profiler.
-func Start(ctx context.Context) error {
+func Start(_ context.Context) error {
 	cfg := global.Config()
 
 	if cfg.Disabled || cfg.ProfilesExporter == config.ProfilesExporterNone {

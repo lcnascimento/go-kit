@@ -1,4 +1,4 @@
-GOPATH=$(shell go env GOPATH)
+GOBIN=$(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 CONTRACTS=$(shell find . -name "contracts.go")
 
 .PHONY: setup
@@ -21,7 +21,7 @@ mocks:
 		dir=$$(dirname $$file); \
 		rm -Rf "$$dir/mocks"; \
 		mkdir -p "$$dir/mocks"; \
-		$(GOPATH)/bin/mockgen -source=$$file -destination="$$dir/mocks/mocks.go" -package=mocks; \
+		$(GOBIN)/mockgen -source=$$file -destination="$$dir/mocks/mocks.go" -package=mocks; \
 	done
 
 	@echo "==> Mock generation completed successfully"
@@ -29,31 +29,31 @@ mocks:
 .PHONY: lint
 lint:
 	@echo "===> Installing golangci-lint"
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 	@echo "===> Running Go Linter"
-	@go list -f '{{.Dir}}' -m | xargs $(GOPATH)/bin/golangci-lint run --timeout 10m
+	@for dir in $$(go list -f '{{.Dir}}' -m); do (cd $$dir && $(GOBIN)/golangci-lint run --timeout 10m ./...) || exit 1; done
 
 	@echo "===> Installing actionlint"
-	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.6.26
+	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
 	@echo "===> Running Github Actions Linter"
-	@$(GOPATH)/bin/actionlint -shellcheck=
+	@$(GOBIN)/actionlint -shellcheck=
 
 	@echo "===> No lint issues found"
 
 .PHONY: vuln-check
 vuln-check:
 	@echo "===> Installing vulncheck"
-	@go install golang.org/x/vuln/cmd/govulncheck@latest
+	@go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 	@echo "===> Checking vulnerabilities"
-	@go list -m | $(GOPATH)/bin/govulncheck
+	@for dir in $$(go list -f '{{.Dir}}' -m); do $(GOBIN)/govulncheck -C $$dir ./... || exit 1; done
 
 	@echo "===> No vulnerabilities found"
 
 .PHONY: test.unit
 test.unit:
 	@echo "===> Running Unit Tests"
-	@go list -m | xargs go test -cover
+	@go list -f '{{.Dir}}/...' -m | xargs go test -short -cover
 	@echo "===> Unit Tests passed"

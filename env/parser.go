@@ -70,10 +70,9 @@ func (c *ParseConfig) envOptions() env.Options {
 }
 
 // CustomTypeParser is a helper function to create a custom parser.
-func CustomTypeParser[T any](p CustomTypeParserFunc[T]) (reflect.Type, func(v string) (interface{}, error)) {
-	var zero [0]T
-	parserType := reflect.TypeOf(zero).Elem()
-	parserFunc := func(v string) (interface{}, error) {
+func CustomTypeParser[T any](p CustomTypeParserFunc[T]) (parserType reflect.Type, parserFunc func(v string) (any, error)) {
+	parserType = reflect.TypeFor[T]()
+	parserFunc = func(v string) (any, error) {
 		return p(v)
 	}
 
