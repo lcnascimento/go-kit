@@ -26,7 +26,6 @@ func (s *GetterTestSuite) SetupTest() {
 }
 
 func (s *GetterTestSuite) TestGetter() {
-
 	s.Run("Simple Getter", func() {
 		s.require.NoError(os.Setenv("NAME", "Han-Solo"))
 		s.require.NoError(os.Setenv("AGE", "35"))
@@ -67,6 +66,16 @@ func (s *GetterTestSuite) TestGetter() {
 		s.require.Equal(false, hasJediTemple) // zero value
 	})
 
+	s.Run("Getter With Named Built In Kind", func() {
+		type Planet string
+
+		s.require.NoError(os.Setenv("HOME_PLANET", "Tatooine"))
+
+		planet := env.Get("HOME_PLANET", env.WithDefaultValue(Planet("Alderaan")))
+
+		s.require.Equal(Planet("Alderaan"), planet) // the string parser cannot produce a Planet
+	})
+
 	s.Run("Getter With Enum", func() {
 		s.require.NoError(os.Setenv("SOCCER_TEAM", "Cruzeiro"))
 		s.require.NoError(os.Setenv("SEASON", "2019/2020"))
@@ -88,7 +97,7 @@ func (s *GetterTestSuite) TestGetter() {
 		pointerPlanetParser := func(value string) (*Planet, error) {
 			return &Planet{Name: value}, nil
 		}
-		planetErrorParser := func(value string) (Planet, error) {
+		planetErrorParser := func(_ string) (Planet, error) {
 			return Planet{}, errors.New("planet not found")
 		}
 
@@ -162,7 +171,6 @@ func (s *GetterTestSuite) TestGetter() {
 }
 
 func (s *GetterTestSuite) TestListGetter() {
-
 	s.Run("Simple Getter", func() {
 		s.require.NoError(os.Setenv("LIST_NAME", "Han-Solo1,Han-Solo2,Han-Solo3"))
 		s.require.NoError(os.Setenv("LIST_AGE", "35,36,37"))
@@ -181,19 +189,19 @@ func (s *GetterTestSuite) TestListGetter() {
 	})
 
 	s.Run("Getter With Enum", func() {
-		s.require.NoError(os.Setenv("LIST_SOCCER_TEAM", "Cruzeiro,Palmeiras,Internacional"))
+		s.require.NoError(os.Setenv("LIST_SOCCER_TEAM", "Cruzeiro,Palmeiras,Flamengo"))
 		s.require.NoError(os.Setenv("LIST_SEASON", "2019/2020,2020/2021,2021/2022"))
 
-		teams := env.GetList("LIST_SOCCER_TEAM", env.WithEnum([]string{"Cruzeiro", "Palmeiras", "Internacional"}))
+		teams := env.GetList("LIST_SOCCER_TEAM", env.WithEnum([]string{"Cruzeiro", "Palmeiras", "Flamengo"}))
 		seasons := env.GetList("LIST_SEASON", env.WithEnum([]string{"2020/2021", "2021/2022"}))
 		tournaments := env.GetList("LIST_TOURNAMENT",
 			env.WithEnum([]string{"Copa do Brasil", "Brasileirão"}),
 			env.WithDefaultListValue([]string{"Copa do Brasil", "Brasileirão"}),
 		)
 
-		s.require.Equal([]string{"Cruzeiro", "Palmeiras", "Internacional"}, teams) // defined value (no default)
-		s.require.Equal([]string{"2020/2021", "2021/2022"}, seasons)               // defined value (with default)
-		s.require.Equal([]string{"Copa do Brasil", "Brasileirão"}, tournaments)    // defined value (with default)
+		s.require.Equal([]string{"Cruzeiro", "Palmeiras", "Flamengo"}, teams)   // defined value (no default)
+		s.require.Equal([]string{"2020/2021", "2021/2022"}, seasons)            // defined value (with default)
+		s.require.Equal([]string{"Copa do Brasil", "Brasileirão"}, tournaments) // defined value (with default)
 	})
 }
 
