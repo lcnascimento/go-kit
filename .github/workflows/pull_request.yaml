@@ -5,4 +5,4 @@ on: pull_request
 jobs:
   quality_gate:
     name: Quality Gate
-    uses: lcnascimento/go-kit/.github/workflows/quality_gate.yaml@main
+    uses: ./.github/workflows/quality_gate.yaml
