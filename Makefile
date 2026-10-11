@@ -29,13 +29,13 @@ mocks:
 .PHONY: lint
 lint:
 	@echo "===> Installing golangci-lint"
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 	@echo "===> Running Go Linter"
-	@go list -f '{{.Dir}}' -m | xargs $(GOBIN)/golangci-lint run --timeout 10m
+	@for dir in $$(go list -f '{{.Dir}}' -m); do (cd $$dir && $(GOBIN)/golangci-lint run --timeout 10m ./...) || exit 1; done
 
 	@echo "===> Installing actionlint"
-	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.6.26
+	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
 	@echo "===> Running Github Actions Linter"
 	@$(GOBIN)/actionlint -shellcheck=

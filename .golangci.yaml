@@ -1,83 +1,33 @@
+version: "2"
 run:
   tests: true
-  timeout: 2m
-
-linters-settings:
-  lll:
-    line-length: 150
-
-  funlen:
-    ignore-comments: true
-
-  gocritic:
-    disabled-checks:
-      - exitAfterDefer
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-
-  misspell:
-    locale: US
-
-  gocyclo:
-    min-complexity: 10
-
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-
-  govet:
-    disable:
-      - fieldalignment
-      - printf
-
-  nakedret:
-    max-func-lines: 1
-
-  tagliatelle:
-    case:
-      rules:
-        json: snake
-        yaml: snake
-        xml: camel
-        bson: camel
-        avro: snake
-        mapstructure: kebab
-
 linters:
-  disable-all: true
-  fast: false
+  default: none
   enable:
     - asasalint
-    - bidichk
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - usestdlibvars
-    - staticcheck
-    - unused
     - asciicheck
+    - bidichk
     - bodyclose
-    - durationcheck
-    - errorlint
+    - contextcheck
     - copyloopvar
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
     - funlen
     - gocritic
     - godot
     - godox
-    - gofmt
-    - gofumpt
     - goheader
-    - goimports
-    - mnd
     - gomoddirectives
+    - gosec
+    - govet
+    - ineffassign
     - lll
+    - loggercheck
     - makezero
     - misspell
+    - mnd
     - nakedret
     - nilerr
     - nilnil
@@ -85,39 +35,97 @@ linters:
     - nolintlint
     - prealloc
     - predeclared
-    - revive
-    - reassign
     - promlinter
-    - stylecheck
+    - reassign
+    - revive
+    - staticcheck
     - tagliatelle
+    - testableexamples
     - thelper
     - tparallel
     - unconvert
     - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
     - wastedassign
-    - tenv
-    - testableexamples
-    - thelper
-    - tparallel
-    - gosec
-    - contextcheck
-    - errname
-    - loggercheck
-    - nakedret
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - lll
-        - errcheck
-        - forcetypeassert
-
-  include:
-    - EXC0012
-    - EXC0014
-
-output:
-  print-issued-lines: true
-  print-linter-name: true
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    funlen:
+      ignore-comments: true
+    gomoddirectives:
+      # Modules in this repo replace each other with their sibling directories on purpose.
+      replace-local: true
+    gocritic:
+      disabled-checks:
+        - exitAfterDefer
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gocyclo:
+      min-complexity: 10
+    govet:
+      disable:
+        - fieldalignment
+        - printf
+    lll:
+      line-length: 150
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 1
+    tagliatelle:
+      case:
+        rules:
+          avro: snake
+          bson: camel
+          json: snake
+          mapstructure: kebab
+          xml: camel
+          yaml: snake
+  exclusions:
+    generated: lax
+    presets:
+      # Doc comments are optional here, exported identifiers included (house convention).
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - forcetypeassert
+          - funlen
+          - lll
+        path: _test\.go
+      # Random test-data generators (Pick, RandomEmail, ...) do not need crypto/rand.
+      - linters:
+          - gosec
+        path: util/util\.go
+        text: G404
+      # Example programs are illustrative snippets: they discard results and use literal values on purpose.
+      - linters:
+          - errcheck
+          - mnd
+          - unused
+        path: /example/
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
