@@ -4,6 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/lcnascimento/go-kit/errors"
 )
 
@@ -23,7 +26,7 @@ type Logger interface {
 	// ErrorMessage logs a message at the error level.
 	ErrorMessage(ctx context.Context, msg string, attrs ...Attr)
 
-	// Error logs error data at the error level.
+	// Error logs error data at the error level, and records it on the span in ctx with an Error status.
 	Error(ctx context.Context, err error, attrs ...Attr)
 
 	// ErrorBySeverity logs error data with the level based on the severity of the error.
@@ -35,13 +38,13 @@ type Logger interface {
 	// CriticalMessage logs a message at the custom critical level.
 	CriticalMessage(ctx context.Context, msg string, attrs ...Attr)
 
-	// Critical logs error data at the custom critical level.
+	// Critical logs error data at the custom critical level, and records it on the span in ctx with an Error status.
 	Critical(ctx context.Context, err error, attrs ...Attr)
 
 	// FatalMessage logs a message at the custom fatal level and panics.
 	FatalMessage(ctx context.Context, msg string, attrs ...Attr)
 
-	// Fatal logs error data at the custom fatal level and panics.
+	// Fatal logs error data at the custom fatal level, records it on the span in ctx with an Error status, and panics.
 	Fatal(ctx context.Context, err error, attrs ...Attr)
 }
 
@@ -95,6 +98,8 @@ func (l *implementation) Error(ctx context.Context, err error, attrs ...Attr) {
 		return
 	}
 
+	recordOnSpan(ctx, err)
+
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelError, err.Error(), attrs...)
 }
@@ -116,6 +121,8 @@ func (l *implementation) Critical(ctx context.Context, err error, attrs ...Attr)
 		return
 	}
 
+	recordOnSpan(ctx, err)
+
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelCritical, err.Error(), attrs...)
 }
@@ -131,6 +138,8 @@ func (l *implementation) Fatal(ctx context.Context, err error, attrs ...Attr) {
 	if err == nil {
 		return
 	}
+
+	recordOnSpan(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelFatal, err.Error(), attrs...)
@@ -151,6 +160,12 @@ func (l *implementation) ErrorBySeverity(ctx context.Context, err error, attrs .
 	default:
 		l.Error(ctx, err, attrs...)
 	}
+}
+
+func recordOnSpan(ctx context.Context, err error) {
+	span := trace.SpanFromContext(ctx)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 }
 
 func errorAttr(err error) Attr {
