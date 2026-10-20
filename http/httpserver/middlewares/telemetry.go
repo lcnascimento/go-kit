@@ -109,7 +109,7 @@ func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string,
 }
 
 func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status int, duration time.Duration) {
-	method := httpconv.RequestMethodAttr(r.Method)
+	method := normalizeMethod(r.Method)
 
 	scheme := "http"
 	if r.TLS != nil {
@@ -122,7 +122,7 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 	}
 
 	counterAttrs := append([]attribute.KeyValue{
-		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
+		attribute.String(string(semconv.HTTPRequestMethodKey), string(method)),
 	}, attrs...)
 
 	totalRequestsMetric.Add(ctx, 1, metric.WithAttributes(counterAttrs...))
@@ -130,6 +130,17 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 
 	if r.ContentLength >= 0 {
 		requestSizeMetric.Record(ctx, r.ContentLength, method, scheme, attrs...)
+	}
+}
+
+func normalizeMethod(method string) httpconv.RequestMethodAttr {
+	switch m := httpconv.RequestMethodAttr(method); m {
+	case httpconv.RequestMethodConnect, httpconv.RequestMethodDelete, httpconv.RequestMethodGet,
+		httpconv.RequestMethodHead, httpconv.RequestMethodOptions, httpconv.RequestMethodPatch,
+		httpconv.RequestMethodPost, httpconv.RequestMethodPut, httpconv.RequestMethodTrace:
+		return m
+	default:
+		return httpconv.RequestMethodOther
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -17,10 +19,14 @@ import (
 	"github.com/lcnascimento/go-kit/http/httpserver/middlewares"
 )
 
-var spans = tracetest.NewSpanRecorder()
+var (
+	spans   = tracetest.NewSpanRecorder()
+	metrics = sdkmetric.NewManualReader()
+)
 
 func TestMain(m *testing.M) {
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans)))
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(metrics)))
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	os.Exit(m.Run())
@@ -59,4 +65,27 @@ func TestTelemetry_OpensAServerSpanNamedByMethodAndRoute(t *testing.T) {
 
 	require.Equal(t, trace.SpanKindServer, span.SpanKind())
 	require.Equal(t, "GET /notes/{id}", span.Name())
+}
+
+func TestTelemetry_CountsAnUnknownMethodAsOther(t *testing.T) {
+	serve(t, httptest.NewRequestWithContext(t.Context(), "PURGE", "/notes/42", nil))
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, metrics.Collect(t.Context(), &collected))
+
+	var methods []string
+
+	for _, m := range collected.ScopeMetrics[0].Metrics {
+		if m.Name != "http.server.request.total" {
+			continue
+		}
+
+		for _, point := range m.Data.(metricdata.Sum[int64]).DataPoints {
+			method, _ := point.Attributes.Value("http.request.method")
+			methods = append(methods, method.AsString())
+		}
+	}
+
+	require.Contains(t, methods, "_OTHER")
+	require.NotContains(t, methods, "PURGE")
 }
