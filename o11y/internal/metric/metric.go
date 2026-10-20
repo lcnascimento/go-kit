@@ -70,6 +70,10 @@ func Start(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failed to start runtime metrics")
 	}
 
+	if err := StartProcess(mp); err != nil {
+		return err
+	}
+
 	otel.SetMeterProvider(mp)
 	return nil
 }
