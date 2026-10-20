@@ -66,9 +66,14 @@ func Telemetry(next http.Handler) http.Handler {
 			},
 		})
 
-		operation := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+		var path string
+		if route := mux.CurrentRoute(r); route != nil {
+			path, _ = route.GetPathTemplate()
+		}
 
-		ctx, span := tracer.Start(ctx, operation)
+		operation := spanName(r.Method, path)
+
+		ctx, span := tracer.Start(ctx, operation, trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		r = r.WithContext(ctx)
@@ -77,15 +82,18 @@ func Telemetry(next http.Handler) http.Handler {
 		status := rww.StatusCode()
 		duration := time.Since(start)
 
-		var path string
-		if route := mux.CurrentRoute(r); route != nil {
-			path, _ = route.GetPathTemplate()
-		}
-
 		logRequest(ctx, r, operation, path, status)
 		measureRequest(ctx, r, path, status, duration)
 		trackRequest(ctx, r, path, status, span)
 	})
+}
+
+func spanName(method, pathTpl string) string {
+	if pathTpl == "" {
+		return method
+	}
+
+	return fmt.Sprintf("%s %s", method, pathTpl)
 }
 
 func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string, status int) {
@@ -127,10 +135,6 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 
 func trackRequest(ctx context.Context, r *http.Request, pathTpl string, status int, span trace.Span) {
 	bag := baggage.FromContext(ctx)
-
-	if pathTpl != "" {
-		span.SetName(fmt.Sprintf("%s %s", r.Method, pathTpl))
-	}
 
 	attrs := []attribute.KeyValue{ //nolint:prealloc // Baggage is small; a hand-counted capacity is not worth it.
 		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
