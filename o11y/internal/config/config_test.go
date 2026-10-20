@@ -85,4 +85,5 @@ func TestConfig(t *testing.T) {
 		config.ProfileHeap: true,
 	}, cfg.Profiles)
 	assert.Equal(t, time.Second*10, cfg.ProfileExportInterval)
+	assert.Equal(t, "http://localhost:4040", cfg.PyroscopeEndpoint)
 }

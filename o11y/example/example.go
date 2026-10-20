@@ -52,6 +52,7 @@ func main() {
 	// OTEL_PROFILES_EXPORTER=pyroscope
 	// OTEL_PROFILES=cpu,heap,goroutine,mutex
 	// OTEL_PROFILE_EXPORT_INTERVAL=10s
+	// OTEL_EXPORTER_PYROSCOPE_ENDPOINT=http://localhost:4040
 
 	for {
 		select {

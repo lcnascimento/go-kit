@@ -62,6 +62,7 @@ type Configuration struct {
 	ProfilesExporter      ProfilesExporter
 	Profiles              Profiles
 	ProfileExportInterval time.Duration
+	PyroscopeEndpoint     string
 }
 
 // Load loads the configuration from the environment variables.
@@ -175,6 +176,9 @@ func (c *Configuration) Load() {
 	))
 	c.ProfileExportInterval = env.Get("OTEL_PROFILE_EXPORT_INTERVAL",
 		env.WithDefaultValue(10*time.Second),
+	)
+	c.PyroscopeEndpoint = env.Get("OTEL_EXPORTER_PYROSCOPE_ENDPOINT",
+		env.WithDefaultValue("http://localhost:4040"),
 	)
 	c.OtlpExporterProtocol = OtlpExporterProtocol(env.Get("OTEL_EXPORTER_OTLP_PROTOCOL",
 		env.WithDefaultValue(string(OtlpExporterProtocolGRPC)),

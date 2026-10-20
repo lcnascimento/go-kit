@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 
+	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -64,7 +65,12 @@ func Start(ctx context.Context) (err error) {
 		trace.WithResource(resource.NewWithAttributes(semconv.SchemaURL, cfg.ResourceAttributes.ToList()...)),
 	)
 
-	otel.SetTracerProvider(tp)
+	if cfg.ProfilesExporter == config.ProfilesExporterNone {
+		otel.SetTracerProvider(tp)
+		return nil
+	}
+
+	otel.SetTracerProvider(otelpyroscope.NewTracerProvider(tp))
 	return nil
 }
 
