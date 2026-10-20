@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/semconv/v1.37.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
 
@@ -42,7 +43,7 @@ var (
 
 func Telemetry(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 		start := time.Now()
 
 		rww := internal.NewRespWriterWrapper(w, func(int64) {})
@@ -65,9 +66,14 @@ func Telemetry(next http.Handler) http.Handler {
 			},
 		})
 
-		operation := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+		var path string
+		if route := mux.CurrentRoute(r); route != nil {
+			path, _ = route.GetPathTemplate()
+		}
 
-		ctx, span := tracer.Start(ctx, operation)
+		operation := spanName(r.Method, path)
+
+		ctx, span := tracer.Start(ctx, operation, trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		r = r.WithContext(ctx)
@@ -76,15 +82,18 @@ func Telemetry(next http.Handler) http.Handler {
 		status := rww.StatusCode()
 		duration := time.Since(start)
 
-		var path string
-		if route := mux.CurrentRoute(r); route != nil {
-			path, _ = route.GetPathTemplate()
-		}
-
 		logRequest(ctx, r, operation, path, status)
 		measureRequest(ctx, r, path, status, duration)
 		trackRequest(ctx, r, path, status, span)
 	})
+}
+
+func spanName(method, pathTpl string) string {
+	if pathTpl == "" {
+		return method
+	}
+
+	return fmt.Sprintf("%s %s", method, pathTpl)
 }
 
 func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string, status int) {
@@ -100,7 +109,7 @@ func logRequest(ctx context.Context, r *http.Request, operation, pathTpl string,
 }
 
 func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status int, duration time.Duration) {
-	method := httpconv.RequestMethodAttr(r.Method)
+	method := normalizeMethod(r.Method)
 
 	scheme := "http"
 	if r.TLS != nil {
@@ -113,7 +122,7 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 	}
 
 	counterAttrs := append([]attribute.KeyValue{
-		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
+		attribute.String(string(semconv.HTTPRequestMethodKey), string(method)),
 	}, attrs...)
 
 	totalRequestsMetric.Add(ctx, 1, metric.WithAttributes(counterAttrs...))
@@ -124,12 +133,19 @@ func measureRequest(ctx context.Context, r *http.Request, pathTpl string, status
 	}
 }
 
+func normalizeMethod(method string) httpconv.RequestMethodAttr {
+	switch m := httpconv.RequestMethodAttr(method); m {
+	case httpconv.RequestMethodConnect, httpconv.RequestMethodDelete, httpconv.RequestMethodGet,
+		httpconv.RequestMethodHead, httpconv.RequestMethodOptions, httpconv.RequestMethodPatch,
+		httpconv.RequestMethodPost, httpconv.RequestMethodPut, httpconv.RequestMethodTrace:
+		return m
+	default:
+		return httpconv.RequestMethodOther
+	}
+}
+
 func trackRequest(ctx context.Context, r *http.Request, pathTpl string, status int, span trace.Span) {
 	bag := baggage.FromContext(ctx)
-
-	if pathTpl != "" {
-		span.SetName(fmt.Sprintf("%s %s", r.Method, pathTpl))
-	}
 
 	attrs := []attribute.KeyValue{ //nolint:prealloc // Baggage is small; a hand-counted capacity is not worth it.
 		attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),

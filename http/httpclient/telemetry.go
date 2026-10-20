@@ -32,11 +32,12 @@ func (c *client) onRequestStart(ctx context.Context, host, path, method string) 
 	attrs := []attribute.KeyValue{
 		attribute.String(string(semconv.NetworkPeerAddressKey), host),
 		attribute.String(string(semconv.HTTPRequestMethodKey), method),
-		attribute.String(string(semconv.HTTPRouteKey), path),
 	}
 
 	operation := fmt.Sprintf("%s %s", method, path)
-	ctx, span := tracer.Start(ctx, operation, trace.WithAttributes(attrs...))
+	ctx, span := tracer.Start(ctx, operation, trace.WithAttributes(
+		append(attrs, attribute.String(string(semconv.HTTPRouteKey), path))...,
+	))
 
 	const port = 80
 
@@ -45,13 +46,12 @@ func (c *client) onRequestStart(ctx context.Context, host, path, method string) 
 	return ctx, span, time.Now()
 }
 
-func (c *client) onRequestEnd(ctx context.Context, host, path, method string, status int, start time.Time, span trace.Span) {
+func (c *client) onRequestEnd(ctx context.Context, host, method string, status int, start time.Time, span trace.Span) {
 	latency := time.Since(start).Milliseconds()
 
 	attrs := []attribute.KeyValue{ //nolint:prealloc // A single later append; a hand-counted capacity is not worth it.
 		attribute.String(string(semconv.NetworkPeerAddressKey), host),
 		attribute.String(string(semconv.HTTPRequestMethodKey), method),
-		attribute.String(string(semconv.HTTPRouteKey), path),
 	}
 
 	const port = 80

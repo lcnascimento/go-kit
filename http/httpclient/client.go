@@ -164,7 +164,7 @@ func (c *client) doRequest(
 		return Result{}, err
 	}
 
-	c.onRequestEnd(ctx, request.Host, request.Path, method, res.StatusCode, start, span)
+	c.onRequestEnd(ctx, request.Host, method, res.StatusCode, start, span)
 
 	result := Result{
 		Response:   body,
