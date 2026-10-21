@@ -53,3 +53,34 @@ jobs:
 
     - name: Run tests
       run: make test.unit
+
+  component_test:
+    name: Component Test
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      POSTGRES_ADMIN_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    steps:
+    - name: Fetch code
+      uses: actions/checkout@v7
+
+    - name: Setup Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: 'go.work'
+        cache-dependency-path: '**/go.sum'
+
+    - name: Run tests
+      run: make test.component

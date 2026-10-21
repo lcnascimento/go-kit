@@ -57,3 +57,10 @@ test.unit:
 	@echo "===> Running Unit Tests"
 	@go list -f '{{.Dir}}/...' -m | xargs go test -short -cover
 	@echo "===> Unit Tests passed"
+
+# Kafka's component tests stay out until CI runs a broker.
+.PHONY: test.component
+test.component:
+	@echo "===> Running Component Tests"
+	@go test -run Component ./postgres/...
+	@echo "===> Component Tests passed"

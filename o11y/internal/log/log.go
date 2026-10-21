@@ -5,11 +5,11 @@ import (
 	"log/slog"
 
 	"go.opentelemetry.io/contrib/processors/minsev"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 
-	oGlobal "go.opentelemetry.io/otel/log/global"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	"github.com/lcnascimento/go-kit/errors"
@@ -78,7 +78,7 @@ func Start(ctx context.Context, core slog.Handler, resolver AttrResolver) (err e
 
 	slog.SetDefault(slog.New(handler))
 	slog.SetLogLoggerLevel(cfg.LogLevel.ToSlogLevel())
-	oGlobal.SetLoggerProvider(lp)
+	otel.SetLoggerProvider(lp)
 
 	return nil
 }
