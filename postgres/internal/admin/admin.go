@@ -19,15 +19,13 @@ const defaultURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode
 
 const pingTimeout = 5 * time.Second
 
-// Config is the reachable admin connection of POSTGRES_ADMIN_URL, failing t
-// when Postgres does not answer.
 func Config(t *testing.T) pgtestdb.Config {
 	t.Helper()
 
 	conf := parse(t)
 
 	if err := ping(t.Context(), &conf); err != nil {
-		t.Fatalf("postgres is not reachable at POSTGRES_ADMIN_URL (%s:%s): %v\n"+
+		t.Fatalf("testdb: postgres is not reachable at POSTGRES_ADMIN_URL (%s:%s): %v\n"+
 			"Start it, point POSTGRES_ADMIN_URL at it, or run the tests with -short to skip the component tests.",
 			conf.Host, conf.Port, err)
 	}

@@ -1,6 +1,7 @@
 package testdb_test
 
 import (
+	"database/sql"
 	"os"
 	"testing"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/lcnascimento/go-kit/postgres/testdb"
 )
 
-var migrations = os.DirFS("../migrate/testdata")
+const roleSkipsRowLevelSecurity = `SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user`
+
+var migrations = os.DirFS("testdata")
 
 func TestComponentTestdb_NewAppliesTheMigrations(t *testing.T) {
 	t.Parallel()
@@ -20,7 +23,7 @@ func TestComponentTestdb_NewAppliesTheMigrations(t *testing.T) {
 	var tables int
 
 	err := pool.QueryRow(t.Context(),
-		`SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('widgets', 'gadgets')`,
+		`SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('widgets', 'hidden_widgets')`,
 	).Scan(&tables)
 	require.NoError(t, err)
 	require.Equal(t, 2, tables)
@@ -41,27 +44,26 @@ func TestComponentTestdb_NewIsolatesEachTest(t *testing.T) {
 	require.Equal(t, 0, count)
 }
 
-// Superuser bypasses row-level security even under FORCE, so a test running
-// as one would pass without exercising the policies.
-func TestComponentTestdb_NewConnectsWithoutSuperuser(t *testing.T) {
+func TestComponentTestdb_NewEnforcesForcedRowLevelSecurity(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
 
-	var superuser bool
+	var visible int
 
-	require.NoError(t, pool.QueryRow(t.Context(), `SELECT rolsuper FROM pg_roles WHERE rolname = current_user`).Scan(&superuser))
-	require.False(t, superuser)
+	require.NoError(t, pool.QueryRow(t.Context(), `SELECT count(*) FROM hidden_widgets`).Scan(&visible))
+	require.Equal(t, 0, visible)
+
+	var skips bool
+
+	require.NoError(t, pool.QueryRow(t.Context(), roleSkipsRowLevelSecurity).Scan(&skips))
+	require.False(t, skips)
 }
 
 func TestComponentTestdb_NewEmptyHasNoTables(t *testing.T) {
 	t.Parallel()
 
-	if testing.Short() {
-		t.Skip("component test")
-	}
-
-	db := testdb.NewEmpty(t)
+	db := newEmpty(t)
 
 	var tables int
 
@@ -69,19 +71,15 @@ func TestComponentTestdb_NewEmptyHasNoTables(t *testing.T) {
 	require.Equal(t, 0, tables)
 }
 
-func TestComponentTestdb_NewEmptyConnectsWithoutSuperuser(t *testing.T) {
+func TestComponentTestdb_NewEmptyRoleIsSubjectToRowLevelSecurity(t *testing.T) {
 	t.Parallel()
 
-	if testing.Short() {
-		t.Skip("component test")
-	}
+	db := newEmpty(t)
 
-	db := testdb.NewEmpty(t)
+	var skips bool
 
-	var superuser bool
-
-	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT rolsuper FROM pg_roles WHERE rolname = current_user`).Scan(&superuser))
-	require.False(t, superuser)
+	require.NoError(t, db.QueryRowContext(t.Context(), roleSkipsRowLevelSecurity).Scan(&skips))
+	require.False(t, skips)
 }
 
 func newPool(t *testing.T) *pgxpool.Pool {
@@ -92,4 +90,14 @@ func newPool(t *testing.T) *pgxpool.Pool {
 	}
 
 	return testdb.New(t, migrations)
+}
+
+func newEmpty(t *testing.T) *sql.DB {
+	t.Helper()
+
+	if testing.Short() {
+		t.Skip("component test")
+	}
+
+	return testdb.NewEmpty(t)
 }

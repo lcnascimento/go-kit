@@ -35,6 +35,7 @@ func TestCommand_MissingDatabaseURLFails(t *testing.T) {
 
 	err := migrate.Command(t.Context(), nil, migrations, func() (string, error) { return "", errors.ErrMock })
 
+	require.ErrorIs(t, err, migrate.ErrDatabaseURL)
 	require.ErrorIs(t, err, errors.ErrMock)
 }
 

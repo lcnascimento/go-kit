@@ -69,7 +69,7 @@ func command(ctx context.Context, args []string, migrations fs.FS, databaseURL f
 
 	url, err := databaseURL()
 	if err != nil {
-		return err
+		return ErrDatabaseURL.WithCause(err)
 	}
 
 	db, err := sql.Open("pgx", url)

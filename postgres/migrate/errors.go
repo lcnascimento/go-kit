@@ -22,5 +22,7 @@ var (
 			WithCode("MIGRATIONS_USAGE").
 			WithAttribute("directions", strings.Join(slices.Sorted(maps.Keys(directions)), ", "))
 
+	ErrDatabaseURL = errors.New("failed to read the database URL")
+
 	ErrConnectDatabase = errors.New("failed to connect to the database: is Postgres up and the database URL right?")
 )
