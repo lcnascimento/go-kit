@@ -1,6 +1,6 @@
 module github.com/lcnascimento/go-kit/env
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/caarlos0/env/v10 v10.0.0
