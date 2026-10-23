@@ -41,6 +41,8 @@ func Start(ctx context.Context) error {
 		return errors.New("otel already started")
 	}
 
+	global.Load()
+
 	cfg := pLog.HandlerConfig{}
 
 	if err := log.Start(ctx, cfg.Core(), cfg.AttrResolver()); err != nil {

@@ -296,3 +296,16 @@ func startStalledPostHog(t *testing.T) <-chan struct{} {
 
 	return arrived
 }
+
+func TestErrorTracking_WithTheSDKDisabledNeverCallsPostHog(t *testing.T) {
+	posthog := startPostHog(t)
+	t.Setenv("OTEL_SDK_DISABLED", "true")
+
+	require.NoError(t, o11y.Start(t.Context()))
+	newLogger().Error(t.Context(), errors.New("boom").WithKind(errors.KindInternal))
+	require.NoError(t, o11y.Shutdown(t.Context()))
+
+	posthog.mu.Lock()
+	defer posthog.mu.Unlock()
+	require.Zero(t, posthog.requests)
+}
