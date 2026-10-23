@@ -2,13 +2,20 @@ package outbox_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"go.opentelemetry.io/otel/trace"
+
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/lcnascimento/go-kit/outbox"
 )
@@ -16,121 +23,150 @@ import (
 const (
 	expired = 8 * 24 * time.Hour
 	recent  = 24 * time.Hour
-
-	oldestPendingAge = "test.outbox.oldest_pending.age"
 )
 
-func TestOutbox_NewRejectsANameThatIsNotAnIdentifier(t *testing.T) {
+func TestOutbox_NewRejectsANameThatIsNotAShortIdentifier(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"", "Notes", "1notes", "notes-outbox", `notes"; DROP TABLE x; --`} {
+	for _, name := range []string{"", "Notes", "1notes", "notes-outbox", `notes"; DROP TABLE x; --`, strings.Repeat("a", 39)} {
 		_, err := outbox.New(name)
 
 		require.ErrorIs(t, err, outbox.ErrInvalidName, name)
 	}
 }
 
+func TestOutbox_NewAcceptsTheLongestNameWhoseTablesFitAPostgresIdentifier(t *testing.T) {
+	t.Parallel()
+
+	o, err := outbox.New(strings.Repeat("a", 38))
+
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("a", 38), o.Name())
+}
+
 func TestComponentJanitor_PurgeKeepsPendingMessages(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 2, expired)
-	ack(t, pool)
-	seed(t, pool, 3, expired)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 2, expired)
+	ack(t, pool, o)
+	seed(t, pool, o, 3, expired)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Equal(t, int64(2), purged)
-	require.Equal(t, 3, count(t, pool))
+	require.Equal(t, 3, count(t, pool, o))
 }
 
 func TestComponentJanitor_PurgeKeepsEverythingBeforeTheFirstAck(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 3, expired)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 3, expired)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Zero(t, purged)
-	require.Equal(t, 3, count(t, pool))
+	require.Equal(t, 3, count(t, pool, o))
 }
 
 func TestComponentJanitor_PurgeKeepsSevenDaysByDefault(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 1, 7*24*time.Hour+time.Minute)
-	seed(t, pool, 3, 7*24*time.Hour-time.Minute)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 1, 7*24*time.Hour+time.Minute)
+	seed(t, pool, o, 3, 7*24*time.Hour-time.Minute)
+	ack(t, pool, o)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Equal(t, int64(1), purged)
-	require.Equal(t, 3, count(t, pool))
+	require.Equal(t, 3, count(t, pool, o))
 }
 
 func TestComponentJanitor_PurgeHonorsTheRetention(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 2, 3*time.Hour)
-	seed(t, pool, 1, time.Hour)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 2, 3*time.Hour)
+	seed(t, pool, o, 1, time.Hour)
+	ack(t, pool, o)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool, outbox.WithRetention(2*time.Hour)).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool, outbox.WithRetention(2*time.Hour)).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Equal(t, int64(2), purged)
-	require.Equal(t, 1, count(t, pool))
+	require.Equal(t, 1, count(t, pool, o))
 }
 
 func TestComponentJanitor_PurgeKeepsRecentlyForwardedMessages(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 3, recent)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 3, recent)
+	ack(t, pool, o)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Zero(t, purged)
-	require.Equal(t, 3, count(t, pool))
+	require.Equal(t, 3, count(t, pool, o))
 }
 
 func TestComponentJanitor_PurgeDeletesExpiredForwardedMessagesAcrossBatches(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 10_001, expired)
-	seed(t, pool, 2, recent)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 10_001, expired)
+	seed(t, pool, o, 2, recent)
+	ack(t, pool, o)
 
-	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	purged, err := newJanitor(t, o, pool).Purge(t.Context())
 
 	require.NoError(t, err)
 	require.Equal(t, int64(10_001), purged)
-	require.Equal(t, 2, count(t, pool))
+	require.Equal(t, 2, count(t, pool, o))
 }
 
-func TestComponentJanitor_PurgeFailsWithoutTheOutboxTables(t *testing.T) {
+func TestComponentJanitor_PurgeFailsWithoutTheOutboxTablesAndMarksItsSpan(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
+	missing := withoutTables()
 
-	_, err := outbox.NewJanitor(outbox.MustNew("missing"), pool).Purge(t.Context())
+	ctx, parent := otel.Tracer("test").Start(t.Context(), "test")
+	_, err := newJanitor(t, missing, pool).Purge(ctx)
+	parent.End()
 
 	require.ErrorIs(t, err, outbox.ErrPurge)
+
+	span := childSpan(t, "PurgeOutbox", parent.SpanContext().SpanID())
+	require.Equal(t, codes.Error, span.Status().Code)
+}
+
+func TestComponentJanitor_OldestPendingAgeFailsWithoutTheOutboxTables(t *testing.T) {
+	t.Parallel()
+
+	_, err := newJanitor(t, withoutTables(), newPool(t)).OldestPendingAge(t.Context())
+
+	require.ErrorIs(t, err, outbox.ErrOldestPendingAge)
 }
 
 func TestComponentJanitor_OldestPendingAgeIsZeroWithoutMessages(t *testing.T) {
 	t.Parallel()
 
-	age, err := outbox.NewJanitor(testOutbox, newPool(t)).OldestPendingAge(t.Context())
+	pool := newPool(t)
+
+	age, err := newJanitor(t, newOutbox(t, pool), pool).OldestPendingAge(t.Context())
 
 	require.NoError(t, err)
 	require.Zero(t, age)
@@ -140,10 +176,11 @@ func TestComponentJanitor_OldestPendingAgeIsZeroWhenEverythingWasForwarded(t *te
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 3, time.Hour)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 3, time.Hour)
+	ack(t, pool, o)
 
-	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+	age, err := newJanitor(t, o, pool).OldestPendingAge(t.Context())
 
 	require.NoError(t, err)
 	require.Zero(t, age)
@@ -153,12 +190,13 @@ func TestComponentJanitor_OldestPendingAgeIgnoresForwardedMessages(t *testing.T)
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 1, time.Hour)
-	ack(t, pool)
-	seed(t, pool, 1, 10*time.Minute)
-	seed(t, pool, 1, time.Minute)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 1, time.Hour)
+	ack(t, pool, o)
+	seed(t, pool, o, 1, 10*time.Minute)
+	seed(t, pool, o, 1, time.Minute)
 
-	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+	age, err := newJanitor(t, o, pool).OldestPendingAge(t.Context())
 
 	require.NoError(t, err)
 	require.InDelta(t, (10 * time.Minute).Seconds(), age.Seconds(), 5)
@@ -168,9 +206,10 @@ func TestComponentJanitor_OldestPendingAgeCountsEverythingBeforeTheFirstAck(t *t
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 1, time.Hour)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 1, time.Hour)
 
-	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+	age, err := newJanitor(t, o, pool).OldestPendingAge(t.Context())
 
 	require.NoError(t, err)
 	require.InDelta(t, time.Hour.Seconds(), age.Seconds(), 5)
@@ -180,116 +219,161 @@ func TestComponentJanitor_PurgesOnStart(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	seed(t, pool, 3, expired)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 3, expired)
+	ack(t, pool, o)
 
-	startJanitor(t, outbox.NewJanitor(testOutbox, pool))
+	startJanitor(t, newJanitor(t, o, pool))
 
-	require.Eventually(t, func() bool { return count(t, pool) == 0 }, waitFor, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return count(t, pool, o) == 0 }, waitFor, 10*time.Millisecond)
 }
 
 func TestComponentJanitor_KeepsPurgingAfterAFailure(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	late := outbox.MustNew("late")
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 1, expired)
+	ack(t, pool, o)
 
-	startJanitor(t, outbox.NewJanitor(late, pool, outbox.WithPurgeInterval(time.Millisecond)))
+	renamed := pgx.Identifier{"watermill_" + o.Name() + "_outbox"}.Sanitize()
+	aside := pgx.Identifier{"aside_" + o.Name()}.Sanitize()
 
-	time.Sleep(20 * time.Millisecond)
-
-	_, err := pool.Exec(t.Context(), `
-		CREATE TABLE watermill_late_outbox (
-			"offset" bigint GENERATED BY DEFAULT AS IDENTITY,
-			uuid text NOT NULL,
-			created_at timestamptz NOT NULL DEFAULT now(),
-			payload json,
-			metadata json,
-			transaction_id xid8 NOT NULL,
-			PRIMARY KEY (transaction_id, "offset")
-		);
-		CREATE TABLE watermill_offsets_late_outbox (
-			consumer_group text PRIMARY KEY,
-			offset_acked bigint,
-			last_processed_transaction_id xid8 NOT NULL
-		);
-		INSERT INTO watermill_late_outbox (uuid, created_at, transaction_id)
-		VALUES ('late', now() - interval '8 days', pg_current_xact_id());
-		INSERT INTO watermill_offsets_late_outbox
-		SELECT 'late-forwarder', "offset", transaction_id FROM watermill_late_outbox;`)
+	_, err := pool.Exec(t.Context(), `ALTER TABLE `+renamed+` RENAME TO `+aside)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		var n int
-		require.NoError(t, pool.QueryRow(t.Context(), `SELECT count(*) FROM watermill_late_outbox`).Scan(&n))
+	startJanitor(t, newJanitor(t, o, pool, outbox.WithPurgeInterval(time.Millisecond)))
 
-		return n == 0
+	require.Eventually(t, func() bool {
+		return counter(t, o.Name()+".outbox.purge.runs", "failure") > 0
 	}, waitFor, 10*time.Millisecond)
+
+	_, err = pool.Exec(t.Context(), `ALTER TABLE `+aside+` RENAME TO `+renamed)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return count(t, pool, o) == 0 }, waitFor, 10*time.Millisecond)
 }
 
 func TestComponentJanitor_StopsPurging(t *testing.T) {
 	t.Parallel()
 
 	pool := newPool(t)
-	janitor := outbox.NewJanitor(testOutbox, pool, outbox.WithPurgeInterval(time.Millisecond))
+	o := newOutbox(t, pool)
+	janitor := newJanitor(t, o, pool, outbox.WithPurgeInterval(time.Millisecond))
 
 	require.NoError(t, janitor.Start(t.Context()))
 	require.NoError(t, janitor.Stop(t.Context()))
 
-	seed(t, pool, 3, expired)
-	ack(t, pool)
+	seed(t, pool, o, 3, expired)
+	ack(t, pool, o)
 
 	time.Sleep(20 * time.Millisecond)
 
-	require.Equal(t, 3, count(t, pool))
+	require.Equal(t, 3, count(t, pool, o))
+}
+
+func TestComponentJanitor_StopBeforeStartDoesNothing(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+
+	require.NoError(t, newJanitor(t, newOutbox(t, pool), pool).Stop(t.Context()))
+}
+
+func TestComponentJanitor_StartsOnlyOnce(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	janitor := newJanitor(t, newOutbox(t, pool), pool)
+	startJanitor(t, janitor)
+
+	require.ErrorIs(t, janitor.Start(t.Context()), outbox.ErrAlreadyStarted)
+}
+
+func TestComponentJanitor_OnlyOneJanitorRunsAnOutboxPerProcess(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	o := newOutbox(t, pool)
+	first := newJanitor(t, o, pool)
+	require.NoError(t, first.Start(t.Context()))
+
+	require.ErrorIs(t, newJanitor(t, o, pool).Start(t.Context()), outbox.ErrJanitorAlreadyRunning)
+
+	require.NoError(t, first.Stop(t.Context()))
+	startJanitor(t, newJanitor(t, o, pool))
 }
 
 func TestComponentJanitor_ReportsTheOldestPendingAgeUntilStopped(t *testing.T) {
-	pool := newPool(t)
-	seed(t, pool, 1, 90*time.Second)
+	t.Parallel()
 
-	janitor := outbox.NewJanitor(testOutbox, pool)
+	pool := newPool(t)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 1, 90*time.Second)
+
+	janitor := newJanitor(t, o, pool)
 	require.NoError(t, janitor.Start(t.Context()))
 
-	got, ok := gauge(t, oldestPendingAge)
+	got, ok := gauge(t, o.Name()+".outbox.oldest_pending.age")
 	require.True(t, ok)
 	require.InDelta(t, 90, got, 5)
 
 	require.NoError(t, janitor.Stop(t.Context()))
 
-	_, ok = gauge(t, oldestPendingAge)
+	_, ok = gauge(t, o.Name()+".outbox.oldest_pending.age")
+	require.False(t, ok)
+}
+
+func TestComponentJanitor_StopWithAnExpiredContextStillStopsReportingTheAge(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	o := newOutbox(t, pool)
+	janitor := newJanitor(t, o, pool)
+	require.NoError(t, janitor.Start(t.Context()))
+
+	expiredCtx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	if err := janitor.Stop(expiredCtx); err != nil {
+		require.ErrorIs(t, err, outbox.ErrStopJanitor)
+		require.ErrorIs(t, err, context.Canceled)
+	}
+
+	_, ok := gauge(t, o.Name()+".outbox.oldest_pending.age")
 	require.False(t, ok)
 }
 
 func TestComponentJanitor_SkipsTheOldestPendingAgeWhenItCannotReadIt(t *testing.T) {
+	t.Parallel()
+
 	pool := newPool(t)
-	_, err := pool.Exec(t.Context(), `DROP TABLE watermill_test_outbox`)
-	require.NoError(t, err)
 
-	startJanitor(t, outbox.NewJanitor(testOutbox, pool))
+	missing := withoutTables()
+	startJanitor(t, newJanitor(t, missing, pool))
 
-	_, ok := gauge(t, oldestPendingAge)
+	_, ok := gauge(t, missing.Name()+".outbox.oldest_pending.age")
 	require.False(t, ok)
 }
 
 func TestComponentJanitor_PurgeCountsRunsByOutcomeAndPurgedMessages(t *testing.T) {
+	t.Parallel()
+
 	pool := newPool(t)
-	seed(t, pool, 4, expired)
-	ack(t, pool)
+	o := newOutbox(t, pool)
+	seed(t, pool, o, 4, expired)
+	ack(t, pool, o)
 
-	before := counters(t)
-
-	_, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	_, err := newJanitor(t, o, pool).Purge(t.Context())
 	require.NoError(t, err)
 
-	_, err = outbox.NewJanitor(outbox.MustNew("missing"), pool).Purge(t.Context())
+	missing := withoutTables()
+	_, err = newJanitor(t, missing, pool).Purge(t.Context())
 	require.Error(t, err)
 
-	after := counters(t)
-
-	require.Equal(t, int64(1), after["test.outbox.purge.runs{outcome=success}"]-before["test.outbox.purge.runs{outcome=success}"])
-	require.Equal(t, int64(4), after["test.outbox.purged.messages"]-before["test.outbox.purged.messages"])
-	require.Equal(t, int64(1), after["missing.outbox.purge.runs{outcome=failure}"]-before["missing.outbox.purge.runs{outcome=failure}"])
+	require.Equal(t, int64(1), counter(t, o.Name()+".outbox.purge.runs", "success"))
+	require.Equal(t, int64(4), counter(t, o.Name()+".outbox.purged.messages", ""))
+	require.Equal(t, int64(1), counter(t, missing.Name()+".outbox.purge.runs", "failure"))
 }
 
 func startJanitor(t *testing.T, janitor *outbox.Janitor) {
@@ -299,28 +383,44 @@ func startJanitor(t *testing.T, janitor *outbox.Janitor) {
 	t.Cleanup(func() { require.NoError(t, janitor.Stop(context.Background())) })
 }
 
-func seed(t *testing.T, pool *pgxpool.Pool, n int, age time.Duration) {
+func messagesTable(o outbox.Outbox) string {
+	return pgx.Identifier{"watermill_" + o.Name() + "_outbox"}.Sanitize()
+}
+
+func seed(t *testing.T, pool *pgxpool.Pool, o outbox.Outbox, n int, age time.Duration) {
 	t.Helper()
 
 	_, err := pool.Exec(t.Context(), `
-		INSERT INTO watermill_test_outbox (uuid, created_at, payload, metadata, transaction_id)
+		INSERT INTO `+messagesTable(o)+` (uuid, created_at, payload, metadata, transaction_id)
 		SELECT gen_random_uuid()::text, now() - make_interval(secs => $2), '{}', '{}', pg_current_xact_id()
 		FROM generate_series(1, $1)`, n, age.Seconds())
 	require.NoError(t, err)
 }
 
-func ack(t *testing.T, pool *pgxpool.Pool) {
+func ack(t *testing.T, pool *pgxpool.Pool, o outbox.Outbox) {
 	t.Helper()
 
 	_, err := pool.Exec(t.Context(), `
-		INSERT INTO watermill_offsets_test_outbox (consumer_group, offset_acked, last_processed_transaction_id)
-		SELECT 'test-forwarder', "offset", transaction_id
-		FROM watermill_test_outbox
+		INSERT INTO `+pgx.Identifier{"watermill_offsets_" + o.Name() + "_outbox"}.Sanitize()+`
+			(consumer_group, offset_acked, last_processed_transaction_id)
+		SELECT $1, "offset", transaction_id
+		FROM `+messagesTable(o)+`
 		ORDER BY transaction_id DESC, "offset" DESC
 		LIMIT 1
 		ON CONFLICT (consumer_group) DO UPDATE
-		SET offset_acked = excluded.offset_acked, last_processed_transaction_id = excluded.last_processed_transaction_id`)
+		SET offset_acked = excluded.offset_acked, last_processed_transaction_id = excluded.last_processed_transaction_id`,
+		o.Name()+"-forwarder")
 	require.NoError(t, err)
+}
+
+func count(t *testing.T, pool *pgxpool.Pool, o outbox.Outbox) int {
+	t.Helper()
+
+	var n int
+
+	require.NoError(t, pool.QueryRow(t.Context(), `SELECT count(*) FROM `+messagesTable(o)).Scan(&n))
+
+	return n
 }
 
 func gauge(t *testing.T, name string) (int64, bool) {
@@ -342,6 +442,8 @@ func gauge(t *testing.T, name string) (int64, bool) {
 				return 0, false
 			}
 
+			require.Len(t, data.DataPoints, 1, name)
+
 			return data.DataPoints[0].Value, true
 		}
 	}
@@ -349,34 +451,40 @@ func gauge(t *testing.T, name string) (int64, bool) {
 	return 0, false
 }
 
-func counters(t *testing.T) map[string]int64 {
+func counter(t *testing.T, name, outcome string) int64 {
 	t.Helper()
 
 	var collected metricdata.ResourceMetrics
 	require.NoError(t, metrics.Collect(t.Context(), &collected))
 
-	out := map[string]int64{}
-
 	for _, scope := range collected.ScopeMetrics {
 		for _, m := range scope.Metrics {
 			sum, ok := m.Data.(metricdata.Sum[int64])
-			if !ok {
+			if m.Name != name || !ok {
 				continue
 			}
 
 			for _, point := range sum.DataPoints {
-				out[m.Name+outcomeLabel(point.Attributes)] = point.Value
+				if got, _ := point.Attributes.Value(attribute.Key("outcome")); got.AsString() == outcome {
+					return point.Value
+				}
 			}
 		}
 	}
 
-	return out
+	return 0
 }
 
-func outcomeLabel(set attribute.Set) string {
-	if outcome, ok := set.Value("outcome"); ok {
-		return "{outcome=" + outcome.AsString() + "}"
+func childSpan(t *testing.T, name string, parent trace.SpanID) sdktrace.ReadOnlySpan {
+	t.Helper()
+
+	for _, span := range spans.Ended() {
+		if span.Name() == name && span.Parent().SpanID() == parent {
+			return span
+		}
 	}
 
-	return ""
+	t.Fatalf("no ended %q span under %s", name, parent)
+
+	return nil
 }

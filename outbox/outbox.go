@@ -1,6 +1,9 @@
 // Package outbox writes messages to Postgres in the transaction of the change they describe, forwards them to Kafka
 // in commit order and purges the forwarded ones.
 //
+// The Forwarder keys each Kafka message by its PartitionKeyHeader metadata value (the CloudEvents partitionkey
+// extension), so every producer sets it to the aggregate whose order matters.
+//
 // An Outbox named "notes" needs these tables, created by the service's migrations:
 //
 //	CREATE TABLE watermill_notes_outbox (
@@ -33,10 +36,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PartitionKeyHeader is the metadata key whose value the Forwarder uses as the Kafka message key.
 const PartitionKeyHeader = "ce_partitionkey"
 
-var validName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+// validName keeps "watermill_offsets_<name>_outbox" within Postgres' 63-byte identifiers, which it truncates silently.
+var validName = regexp.MustCompile(`^[a-z][a-z0-9_]{0,37}$`)
 
 type Outbox struct {
 	name string
@@ -59,8 +62,12 @@ func MustNew(name string) Outbox {
 	return o
 }
 
+func (o Outbox) Name() string {
+	return o.name
+}
+
 // Publish writes the messages to the outbox in tx, so they reach their topic only if tx commits.
-func (o Outbox) Publish(ctx context.Context, tx pgx.Tx, topic string, messages ...*message.Message) (err error) {
+func (o Outbox) Publish(ctx context.Context, tx pgx.Tx, topic string, messages ...*message.Message) error {
 	publisher, err := sql.NewPublisher(
 		sql.TxFromPgx(tx),
 		sql.PublisherConfig{SchemaAdapter: sql.DefaultPostgreSQLSchema{}},
@@ -103,6 +110,28 @@ func (o Outbox) newSubscriber(pool *pgxpool.Pool) (message.Subscriber, error) {
 		},
 		watermill.NopLogger{},
 	)
+}
+
+func (o Outbox) purgeQuery(retention time.Duration, batchSize int) (query string, args []any) {
+	return `
+		DELETE FROM ` + o.messagesTable() + `
+		WHERE (transaction_id, "offset") IN (
+			SELECT m.transaction_id, m."offset"
+			FROM ` + o.messagesTable() + ` m
+			JOIN ` + o.offsetsTable() + ` o ON o.consumer_group = $1
+			WHERE m.created_at < now() - make_interval(secs => $2::float8)
+			  AND (m.transaction_id, m."offset") <= (o.last_processed_transaction_id, o.offset_acked)
+			LIMIT $3
+		)`, []any{o.consumerGroup(), retention.Seconds(), batchSize}
+}
+
+func (o Outbox) oldestPendingAgeQuery() (query string, args []any) {
+	return `
+		SELECT coalesce(extract(epoch FROM now() - min(m.created_at)), 0)::float8
+		FROM ` + o.messagesTable() + ` m
+		LEFT JOIN ` + o.offsetsTable() + ` o ON o.consumer_group = $1
+		WHERE o.offset_acked IS NULL
+		   OR (m.transaction_id, m."offset") > (o.last_processed_transaction_id, o.offset_acked)`, []any{o.consumerGroup()}
 }
 
 func (o Outbox) forwarderTopic() string {

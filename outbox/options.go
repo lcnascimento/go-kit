@@ -1,6 +1,10 @@
 package outbox
 
-import "time"
+import (
+	"time"
+
+	"github.com/ThreeDotsLabs/watermill/message"
+)
 
 type JanitorOption func(*Janitor)
 
@@ -20,9 +24,17 @@ func WithPurgeInterval(interval time.Duration) JanitorOption {
 
 type ForwarderOption func(*Forwarder)
 
-// WithShutdown is called when the forwarder stops without Stop being called.
+// WithShutdown sets shutdown, called when the forwarder stops without Stop being called.
 func WithShutdown(shutdown func()) ForwarderOption {
 	return func(f *Forwarder) {
 		f.shutdown = shutdown
+	}
+}
+
+// WithValidation makes the forwarder send only messages validate accepts; it retries a rejected one, as it does a
+// failed send, so a malformed message holds back the ones after it instead of reaching Kafka.
+func WithValidation(validate func(*message.Message) error) ForwarderOption {
+	return func(f *Forwarder) {
+		f.validate = validate
 	}
 }

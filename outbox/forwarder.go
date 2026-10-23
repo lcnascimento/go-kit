@@ -2,8 +2,6 @@ package outbox
 
 import (
 	"context"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -25,30 +23,32 @@ const (
 	retryMultiplier      = 2
 )
 
+// KafkaTarget is where a Forwarder sends: the brokers, and every topic the outbox's messages go to.
+type KafkaTarget struct {
+	Brokers []string
+	Topics  []string
+}
+
 // Forwarder sends the outbox messages to Kafka in commit order, keyed by PartitionKeyHeader, with idempotent writes.
 type Forwarder struct {
 	outbox    Outbox
-	topics    []string
+	target    KafkaTarget
 	router    *message.Router
 	publisher *kafka.Publisher
 	cluster   *cluster
 	shutdown  func()
+	validate  func(*message.Message) error
 
-	started  atomic.Bool
-	stopping atomic.Bool
-	stopOnce sync.Once
-	stopErr  error
-	runDone  chan struct{}
+	lifecycle lifecycle
+	runDone   chan struct{}
+	stopDone  chan struct{}
+	stopErr   error
 }
 
-// NewForwarder fails unless every topic the outbox forwards to exists.
-func NewForwarder(o Outbox, pool *pgxpool.Pool, brokers, topics []string, opts ...ForwarderOption) (*Forwarder, error) {
-	if pool == nil || len(brokers) == 0 || len(topics) == 0 {
+// NewForwarder fails unless Kafka answers within ctx and every topic of target exists.
+func NewForwarder(ctx context.Context, o Outbox, pool *pgxpool.Pool, target KafkaTarget, opts ...ForwarderOption) (*Forwarder, error) {
+	if pool == nil || len(target.Brokers) == 0 || len(target.Topics) == 0 {
 		return nil, ErrInvalidForwarderConfig
-	}
-
-	if err := checkTopics(brokers, topics); err != nil {
-		return nil, err
 	}
 
 	subscriber, err := o.newSubscriber(pool)
@@ -56,12 +56,18 @@ func NewForwarder(o Outbox, pool *pgxpool.Pool, brokers, topics []string, opts .
 		return nil, ErrInvalidForwarderConfig.WithCause(err)
 	}
 
-	cluster, err := dialCluster(brokers, topics)
+	cluster, err := dialCluster(ctx, target)
 	if err != nil {
 		return nil, err
 	}
 
-	publisher, err := newKafkaPublisher(brokers)
+	if err := cluster.checkTopics(ctx); err != nil {
+		_ = cluster.Close()
+
+		return nil, err
+	}
+
+	publisher, err := newKafkaPublisher(ctx, target.Brokers)
 	if err != nil {
 		_ = cluster.Close()
 
@@ -70,19 +76,20 @@ func NewForwarder(o Outbox, pool *pgxpool.Pool, brokers, topics []string, opts .
 
 	f := &Forwarder{
 		outbox:    o,
-		topics:    topics,
+		target:    target,
 		publisher: publisher,
 		cluster:   cluster,
 		shutdown:  func() {},
 		runDone:   make(chan struct{}),
+		stopDone:  make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(f)
 	}
 
-	f.router, err = newRouter(o, subscriber, publisher)
+	f.router, err = newRouter(o, subscriber, newTracedPublisher(publisher, o.name, f.validate))
 	if err != nil {
-		f.close()
+		_ = f.closeClients()
 
 		return nil, ErrInvalidForwarderConfig.WithCause(err)
 	}
@@ -103,7 +110,7 @@ func newRouter(o Outbox, subscriber message.Subscriber, publisher message.Publis
 		Multiplier:      retryMultiplier,
 	}
 
-	_, err = forwarder.NewForwarder(subscriber, newTracedPublisher(publisher), watermill.NopLogger{}, forwarder.Config{
+	_, err = forwarder.NewForwarder(subscriber, publisher, watermill.NopLogger{}, forwarder.Config{
 		ForwarderTopic: o.forwarderTopic(),
 		Router:         router,
 		Middlewares:    []message.HandlerMiddleware{retry.Middleware, middleware.Recoverer},
@@ -115,11 +122,13 @@ func newRouter(o Outbox, subscriber message.Subscriber, publisher message.Publis
 	return router, nil
 }
 
+// Start fails, releasing everything, unless the forwarder is running within ctx and startTimeout.
 func (f *Forwarder) Start(ctx context.Context) error {
+	if err := f.lifecycle.start(); err != nil {
+		return err
+	}
+
 	runErr := make(chan error, 1)
-
-	f.started.Store(true)
-
 	runCtx := context.WithoutCancel(ctx)
 
 	go func() {
@@ -128,7 +137,7 @@ func (f *Forwarder) Start(ctx context.Context) error {
 		err := f.router.Run(runCtx)
 		runErr <- err
 
-		if !f.stopping.Load() {
+		if f.lifecycle.is(running) {
 			onForwarderStoppedUnexpectedly(runCtx, err)
 			f.shutdown()
 		}
@@ -139,66 +148,94 @@ func (f *Forwarder) Start(ctx context.Context) error {
 
 	select {
 	case <-f.router.Running():
-		onForwarderStarted(ctx, f.outbox.name, f.topics)
+		onForwarderStarted(ctx, f.outbox.name, f.target.Topics)
 
 		return nil
 	case err := <-runErr:
-		return ErrStartForwarder.WithCause(err)
+		return f.failStart(ctx, err)
 	case <-timeout.C:
-		return ErrStartForwarder.WithCause(context.DeadlineExceeded)
+		return f.failStart(ctx, context.DeadlineExceeded)
 	case <-ctx.Done():
-		return ErrStartForwarder.WithCause(ctx.Err())
+		return f.failStart(ctx, ctx.Err())
 	}
 }
 
-func (f *Forwarder) Stop(context.Context) error {
-	f.stopOnce.Do(func() {
-		f.stopping.Store(true)
+func (f *Forwarder) failStart(ctx context.Context, cause error) error {
+	err := ErrStartForwarder.WithCause(cause)
 
-		routerErr := f.router.Close()
-		if f.started.Load() {
-			<-f.runDone
+	if stopErr := f.Stop(context.WithoutCancel(ctx)); stopErr != nil {
+		err = err.WithCause(stopErr)
+	}
+
+	return err
+}
+
+// Stop closes the router and the Kafka clients; it returns when ctx expires, and a later Stop waits for the rest.
+func (f *Forwarder) Stop(ctx context.Context) error {
+	if previous := f.lifecycle.stop(); previous != stopped {
+		go f.release(previous == running)
+	}
+
+	select {
+	case <-f.stopDone:
+		return f.stopErr
+	case <-ctx.Done():
+		return ErrStopForwarder.WithCause(ctx.Err())
+	}
+}
+
+func (f *Forwarder) release(wasRunning bool) {
+	defer close(f.stopDone)
+
+	var routerErr error
+
+	if wasRunning {
+		routerErr = f.router.Close()
+		<-f.runDone
+	}
+
+	for _, err := range []error{routerErr, f.closeClients()} {
+		if err != nil {
+			f.stopErr = ErrStopForwarder.WithCause(err)
+
+			return
 		}
-
-		publisherErr, clusterErr := f.publisher.Close(), f.cluster.Close()
-
-		for _, err := range []error{routerErr, publisherErr, clusterErr} {
-			if err != nil {
-				f.stopErr = ErrStopForwarder.WithCause(err)
-
-				return
-			}
-		}
-	})
-
-	return f.stopErr
+	}
 }
 
 // Ready fails while the forwarder is not running or Kafka does not answer for its topics.
 func (f *Forwarder) Ready(ctx context.Context) error {
-	if !f.router.IsRunning() || f.router.IsClosed() {
+	if !f.lifecycle.is(running) || !f.router.IsRunning() || f.router.IsClosed() {
 		return ErrForwarderNotRunning
 	}
 
 	return f.cluster.Ping(ctx)
 }
 
-func (f *Forwarder) close() {
-	_ = f.publisher.Close()
-	_ = f.cluster.Close()
+func (f *Forwarder) closeClients() error {
+	publisherErr, clusterErr := f.publisher.Close(), f.cluster.Close()
+	if publisherErr != nil {
+		return publisherErr
+	}
+
+	return clusterErr
 }
 
-func newKafkaPublisher(brokers []string) (*kafka.Publisher, error) {
+// newKafkaPublisher opens the connection that sends; watermill-kafka dials its own producer and cannot share cluster's.
+func newKafkaPublisher(ctx context.Context, brokers []string) (*kafka.Publisher, error) {
 	cfg := kafka.DefaultSaramaSyncPublisherConfig()
 	cfg.Producer.Idempotent = true
 	cfg.Producer.RequiredAcks = sarama.WaitForAll
 	cfg.Net.MaxOpenRequests = 1
+	cfg.Net.DialTimeout = connectTimeout
 
-	publisher, err := kafka.NewPublisher(kafka.PublisherConfig{
-		Brokers:               brokers,
-		Marshaler:             kafka.NewWithPartitioningMarshaler(partitionKey),
-		OverwriteSaramaConfig: cfg,
-	}, watermill.NopLogger{})
+	publisher, err := withContext(ctx, func() (*kafka.Publisher, error) {
+		return kafka.NewPublisher(kafka.PublisherConfig{
+			Brokers:               brokers,
+			Marshaler:             kafka.NewWithPartitioningMarshaler(partitionKey),
+			OverwriteSaramaConfig: cfg,
+		}, watermill.NopLogger{})
+	}, func(p *kafka.Publisher) { _ = p.Close() })
 	if err != nil {
 		return nil, ErrKafkaUnavailable.WithCause(err)
 	}
@@ -208,26 +245,4 @@ func newKafkaPublisher(brokers []string) (*kafka.Publisher, error) {
 
 func partitionKey(_ string, msg *message.Message) (string, error) {
 	return msg.Metadata.Get(PartitionKeyHeader), nil
-}
-
-func checkTopics(brokers, topics []string) error {
-	admin, err := sarama.NewClusterAdmin(brokers, sarama.NewConfig())
-	if err != nil {
-		return ErrKafkaUnavailable.WithCause(err)
-	}
-
-	defer func() { _ = admin.Close() }()
-
-	existing, err := admin.ListTopics()
-	if err != nil {
-		return ErrKafkaUnavailable.WithCause(err)
-	}
-
-	for _, topic := range topics {
-		if _, ok := existing[topic]; !ok {
-			return ErrTopicMissing.WithAttribute("topic", topic)
-		}
-	}
-
-	return nil
 }

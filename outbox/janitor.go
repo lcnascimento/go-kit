@@ -2,6 +2,7 @@ package outbox
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,9 @@ const (
 	purgeBatchSize = 10_000
 )
 
+// runningJanitors holds the outboxes with a running Janitor, since a second one would report the same gauge twice.
+var runningJanitors sync.Map
+
 // Janitor purges forwarded messages older than the retention and reports the age of the oldest pending one.
 type Janitor struct {
 	outbox    Outbox
@@ -23,30 +27,49 @@ type Janitor struct {
 	interval  time.Duration
 	telemetry janitorTelemetry
 
+	lifecycle    lifecycle
 	cancel       context.CancelFunc
 	done         chan struct{}
 	registration otelmetric.Registration
 }
 
-func NewJanitor(o Outbox, pool *pgxpool.Pool, opts ...JanitorOption) *Janitor {
+func NewJanitor(o Outbox, pool *pgxpool.Pool, opts ...JanitorOption) (*Janitor, error) {
+	telemetry, err := newJanitorTelemetry(o.name)
+	if err != nil {
+		return nil, ErrNewJanitor.WithCause(err)
+	}
+
 	j := &Janitor{
 		outbox:    o,
 		pool:      pool,
 		retention: defaultRetention,
 		interval:  defaultPurgeInterval,
-		telemetry: newJanitorTelemetry(o.name),
+		telemetry: telemetry,
 	}
 
 	for _, opt := range opts {
 		opt(j)
 	}
 
-	return j
+	return j, nil
 }
 
 func (j *Janitor) Start(ctx context.Context) error {
+	if err := j.lifecycle.start(); err != nil {
+		return err
+	}
+
+	if _, taken := runningJanitors.LoadOrStore(j.outbox.name, j); taken {
+		j.lifecycle.stop()
+
+		return ErrJanitorAlreadyRunning.WithAttribute("outbox", j.outbox.name)
+	}
+
 	registration, err := j.telemetry.registerOldestPendingAge(j.OldestPendingAge)
 	if err != nil {
+		j.lifecycle.stop()
+		runningJanitors.Delete(j.outbox.name)
+
 		return ErrStartJanitor.WithCause(err)
 	}
 
@@ -60,36 +83,41 @@ func (j *Janitor) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop stops reporting the age at once and waits for an ongoing purge until ctx expires.
 func (j *Janitor) Stop(ctx context.Context) error {
+	if j.lifecycle.stop() != running {
+		return nil
+	}
+
+	defer runningJanitors.Delete(j.outbox.name)
+
 	j.cancel()
+
+	unregisterErr := j.registration.Unregister()
 
 	select {
 	case <-j.done:
 	case <-ctx.Done():
-		return ctx.Err()
+		return ErrStopJanitor.WithCause(ctx.Err())
 	}
 
-	return j.registration.Unregister()
+	if unregisterErr != nil {
+		return ErrStopJanitor.WithCause(unregisterErr)
+	}
+
+	return nil
 }
 
 func (j *Janitor) Purge(ctx context.Context) (int64, error) {
 	ctx, span := j.telemetry.onPurgeStart(ctx)
 	defer span.End()
 
+	query, args := j.outbox.purgeQuery(j.retention, purgeBatchSize)
+
 	var total int64
 
 	for {
-		tag, err := j.pool.Exec(ctx, `
-			DELETE FROM `+j.outbox.messagesTable()+`
-			WHERE (transaction_id, "offset") IN (
-				SELECT m.transaction_id, m."offset"
-				FROM `+j.outbox.messagesTable()+` m
-				JOIN `+j.outbox.offsetsTable()+` o ON o.consumer_group = $1
-				WHERE m.created_at < now() - make_interval(secs => $2::float8)
-				  AND (m.transaction_id, m."offset") <= (o.last_processed_transaction_id, o.offset_acked)
-				LIMIT $3
-			)`,
-			j.outbox.consumerGroup(), j.retention.Seconds(), purgeBatchSize)
+		tag, err := j.pool.Exec(ctx, query, args...)
 		if err != nil {
 			return total, j.telemetry.onPurgeFailed(ctx, total, ErrPurge.WithCause(err))
 		}
@@ -106,16 +134,11 @@ func (j *Janitor) Purge(ctx context.Context) (int64, error) {
 
 // OldestPendingAge is 0 when every message was forwarded.
 func (j *Janitor) OldestPendingAge(ctx context.Context) (time.Duration, error) {
+	query, args := j.outbox.oldestPendingAgeQuery()
+
 	var seconds float64
 
-	err := j.pool.QueryRow(ctx, `
-		SELECT coalesce(extract(epoch FROM now() - min(m.created_at)), 0)::float8
-		FROM `+j.outbox.messagesTable()+` m
-		LEFT JOIN `+j.outbox.offsetsTable()+` o ON o.consumer_group = $1
-		WHERE o.offset_acked IS NULL
-		   OR (m.transaction_id, m."offset") > (o.last_processed_transaction_id, o.offset_acked)`,
-		j.outbox.consumerGroup()).Scan(&seconds)
-	if err != nil {
+	if err := j.pool.QueryRow(ctx, query, args...).Scan(&seconds); err != nil {
 		return 0, ErrOldestPendingAge.WithCause(err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -47,22 +48,30 @@ type janitorTelemetry struct {
 	oldestPendingAge otelmetric.Int64ObservableGauge
 }
 
-// newJanitorTelemetry names the metrics after the outbox, as <name>.outbox.*, so each service's outbox has its own.
-func newJanitorTelemetry(name string) janitorTelemetry {
+// Exception to package-level instruments named <resource>.<event>: the Janitor's are per outbox and named
+// <name>.outbox.*, because the boilerplate's alerts, SLOs and dashboards query <service>_outbox_* per service
+// (OutboxAgeAbsent among them) and must keep working for the services already on it.
+func newJanitorTelemetry(name string) (janitorTelemetry, error) {
+	purgedMessages, err := meter.Int64Counter(name+".outbox.purged.messages",
+		otelmetric.WithDescription("Number of forwarded messages deleted from the outbox"))
+	if err != nil {
+		return janitorTelemetry{}, err
+	}
+
+	purgeRuns, err := meter.Int64Counter(name+".outbox.purge.runs",
+		otelmetric.WithDescription("Number of outbox purges, by outcome"))
+	if err != nil {
+		return janitorTelemetry{}, err
+	}
+
 	oldestPendingAge, err := meter.Int64ObservableGauge(name+".outbox.oldest_pending.age",
 		otelmetric.WithDescription("Age of the oldest outbox message not yet forwarded to Kafka, 0 when none"),
 		otelmetric.WithUnit("s"))
 	if err != nil {
-		panic(err)
+		return janitorTelemetry{}, err
 	}
 
-	return janitorTelemetry{
-		purgedMessages: metric.MustIntCounter(meter, name+".outbox.purged.messages",
-			"Number of forwarded messages deleted from the outbox"),
-		purgeRuns: metric.MustIntCounter(meter, name+".outbox.purge.runs",
-			"Number of outbox purges, by outcome"),
-		oldestPendingAge: oldestPendingAge,
-	}
+	return janitorTelemetry{purgedMessages: purgedMessages, purgeRuns: purgeRuns, oldestPendingAge: oldestPendingAge}, nil
 }
 
 func (t janitorTelemetry) registerOldestPendingAge(
@@ -71,7 +80,7 @@ func (t janitorTelemetry) registerOldestPendingAge(
 	return meter.RegisterCallback(func(ctx context.Context, observer otelmetric.Observer) error {
 		age, err := read(ctx)
 		if err != nil {
-			logger.Error(ctx, err)
+			logger.ErrorBySeverity(ctx, err)
 
 			return nil
 		}
@@ -123,7 +132,6 @@ func messageAttributes(msg *message.Message) []attribute.KeyValue {
 	return attributes
 }
 
-// onCreateStart opens the producer span and writes its context to the message metadata, so the send span links to it.
 func onCreateStart(ctx context.Context, msg *message.Message, topic string) func(error) {
 	ctx, span := tracer.Start(ctx, operationCreate+" "+topic,
 		trace.WithSpanKind(trace.SpanKindProducer),
@@ -162,7 +170,7 @@ func deliveryAttempt(n int) attribute.KeyValue {
 	return attribute.Int("messaging.delivery.attempt", n)
 }
 
-func onSendStart(msg *message.Message, topic string, attempt int) func(error) {
+func onSendStart(msg *message.Message, outboxName, topic string, attempt int) func(error) {
 	started := time.Now()
 
 	attributes := append(sendAttributes(topic), deliveryAttempt(attempt))
@@ -184,14 +192,14 @@ func onSendStart(msg *message.Message, topic string, attempt int) func(error) {
 	return func(err error) {
 		defer span.End()
 
-		metricAttributes := sendAttributes(topic)
+		metricAttributes := append(sendAttributes(topic), attribute.String("outbox.name", outboxName))
 
 		if err != nil {
 			errType := semconv.ErrorTypeKey.String(errorType(err))
 			metricAttributes = append(metricAttributes, errType)
 
 			span.SetAttributes(errType)
-			logger.Error(ctx, ErrSend.WithCause(err).WithAttribute("messaging.delivery.attempt", strconv.Itoa(attempt)))
+			logger.ErrorBySeverity(ctx, ErrSend.WithCause(err).WithAttribute("messaging.delivery.attempt", strconv.Itoa(attempt)))
 		}
 
 		sentMessages.Add(ctx, 1, otelmetric.WithAttributes(metricAttributes...))
@@ -200,6 +208,11 @@ func onSendStart(msg *message.Message, topic string, attempt int) func(error) {
 }
 
 func errorType(err error) string {
+	var kafkaErr sarama.KError
+	if errors.As(err, &kafkaErr) {
+		return "KAFKA_ERROR_" + strconv.Itoa(int(kafkaErr))
+	}
+
 	if code := errors.Code(err); code != errors.CodeUnknown {
 		return string(code)
 	}

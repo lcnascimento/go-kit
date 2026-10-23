@@ -1,9 +1,11 @@
 package outbox_test
 
 import (
+	"crypto/rand"
 	"embed"
+	"encoding/hex"
 	"io/fs"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.uber.org/goleak"
 
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -39,7 +42,13 @@ func TestMain(m *testing.M) {
 	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(metrics)))
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m,
+		// The Redpanda container and Docker client live for the whole run, and sarama starts one metrics ticker per process.
+		goleak.IgnoreAnyFunction("net/http.(*persistConn).readLoop"),
+		goleak.IgnoreAnyFunction("net/http.(*persistConn).writeLoop"),
+		goleak.IgnoreTopFunction("github.com/rcrowley/go-metrics.(*meterArbiter).tick"),
+		goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).connect.func1"),
+	)
 }
 
 func newPool(t *testing.T) *pgxpool.Pool {
@@ -52,14 +61,38 @@ func newPool(t *testing.T) *pgxpool.Pool {
 	return testdb.New(t, migrations)
 }
 
-func count(t *testing.T, pool *pgxpool.Pool) int {
+// newOutbox creates the tables of an outbox with a name of its own, so the test's metrics and Janitor are its alone.
+func newOutbox(t *testing.T, pool *pgxpool.Pool) outbox.Outbox {
 	t.Helper()
 
-	var n int
+	name := withoutTables().Name()
 
-	require.NoError(t, pool.QueryRow(t.Context(), `SELECT count(*) FROM watermill_test_outbox`).Scan(&n))
+	raw, err := fs.ReadFile(migrations, "00001_create_test_outbox.sql")
+	require.NoError(t, err)
 
-	return n
+	up, _, _ := strings.Cut(strings.TrimPrefix(string(raw), "-- +goose Up"), "-- +goose Down")
+
+	_, err = pool.Exec(t.Context(), strings.ReplaceAll(up, "test_outbox", name+"_outbox"))
+	require.NoError(t, err)
+
+	return outbox.MustNew(name)
+}
+
+// withoutTables names an outbox no test created tables for, so its metrics start from zero.
+func withoutTables() outbox.Outbox {
+	suffix := make([]byte, 4)
+	_, _ = rand.Read(suffix)
+
+	return outbox.MustNew("t" + hex.EncodeToString(suffix))
+}
+
+func newJanitor(t *testing.T, o outbox.Outbox, pool *pgxpool.Pool, opts ...outbox.JanitorOption) *outbox.Janitor {
+	t.Helper()
+
+	janitor, err := outbox.NewJanitor(o, pool, opts...)
+	require.NoError(t, err)
+
+	return janitor
 }
 
 func mustSub(fsys fs.FS, dir string) fs.FS {
