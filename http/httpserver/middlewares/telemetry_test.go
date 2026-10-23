@@ -75,14 +75,20 @@ func TestTelemetry_CountsAnUnknownMethodAsOther(t *testing.T) {
 
 	var methods []string
 
-	for _, m := range collected.ScopeMetrics[0].Metrics {
-		if m.Name != "http.server.request.total" {
+	for _, scope := range collected.ScopeMetrics {
+		if scope.Scope.Name != "github.com/lcnascimento/go-kit/http/httpserver/middlewares" {
 			continue
 		}
 
-		for _, point := range m.Data.(metricdata.Sum[int64]).DataPoints {
-			method, _ := point.Attributes.Value("http.request.method")
-			methods = append(methods, method.AsString())
+		for _, m := range scope.Metrics {
+			if m.Name != "http.server.request.total" {
+				continue
+			}
+
+			for _, point := range m.Data.(metricdata.Sum[int64]).DataPoints {
+				method, _ := point.Attributes.Value("http.request.method")
+				methods = append(methods, method.AsString())
+			}
 		}
 	}
 

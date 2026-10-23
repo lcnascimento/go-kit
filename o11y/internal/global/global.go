@@ -1,19 +1,25 @@
 package global
 
 import (
+	"sync/atomic"
+
 	"github.com/lcnascimento/go-kit/o11y/internal/config"
 )
 
-var cfg *config.Configuration
+var cfg atomic.Pointer[config.Configuration]
 
-// Config returns the global configuration.
 func Config() *config.Configuration {
-	if cfg != nil {
-		return cfg
+	if c := cfg.Load(); c != nil {
+		return c
 	}
 
-	cfg = &config.Configuration{}
-	cfg.Load()
+	return Load()
+}
 
-	return cfg
+func Load() *config.Configuration {
+	c := &config.Configuration{}
+	c.Load()
+	cfg.Store(c)
+
+	return c
 }

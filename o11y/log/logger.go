@@ -8,11 +8,15 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/lcnascimento/go-kit/errors"
+	"github.com/lcnascimento/go-kit/o11y/internal/errortracking"
 )
 
 // Logger is logging structure with a more rigid interface than slog.
 // It forces the use of context and attributes, in a more opinionated style.
 // It's usage is highly recommended due to its facilities on error handling.
+//
+// Error, Critical and Fatal also send errors of kind UNKNOWN, INTERNAL, CRITICAL, SERVICE_UNAVAILABLE and FATAL
+// to PostHog Error Tracking, once o11y.Start found a POSTHOG_PROJECT_KEY.
 type Logger interface {
 	// Debug logs a message at the debug level.
 	Debug(ctx context.Context, msg string, attrs ...Attr)
@@ -45,6 +49,7 @@ type Logger interface {
 	FatalMessage(ctx context.Context, msg string, attrs ...Attr)
 
 	// Fatal logs error data at the custom fatal level, records it on the span in ctx with an Error status, and panics.
+	// It flushes error tracking before panicking, so a recovered Fatal reaches PostHog twice: as itself and as a PANIC.
 	Fatal(ctx context.Context, err error, attrs ...Attr)
 }
 
@@ -99,6 +104,7 @@ func (l *implementation) Error(ctx context.Context, err error, attrs ...Attr) {
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelError, err.Error(), attrs...)
@@ -122,6 +128,7 @@ func (l *implementation) Critical(ctx context.Context, err error, attrs ...Attr)
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelCritical, err.Error(), attrs...)
@@ -140,10 +147,12 @@ func (l *implementation) Fatal(ctx context.Context, err error, attrs ...Attr) {
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelFatal, err.Error(), attrs...)
 
+	errortracking.Flush(ctx)
 	panic(err.Error())
 }
 
@@ -171,7 +180,7 @@ func recordOnSpan(ctx context.Context, err error) {
 func errorAttr(err error) Attr {
 	attrs := []any{
 		String("message", err.Error()),
-		String("kind", string(errors.Code(err))),
+		String("kind", string(errors.Kind(err))),
 		String("avn_code", string(errors.Code(err))),
 		String("avn_kind", string(errors.Kind(err))),
 		String("severity", errors.Severity(err).String()),

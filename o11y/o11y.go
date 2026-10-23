@@ -11,6 +11,7 @@ import (
 	pLog "github.com/lcnascimento/go-kit/o11y/log"
 
 	"github.com/lcnascimento/go-kit/errors"
+	"github.com/lcnascimento/go-kit/o11y/internal/errortracking"
 	"github.com/lcnascimento/go-kit/o11y/internal/global"
 	"github.com/lcnascimento/go-kit/o11y/internal/log"
 	"github.com/lcnascimento/go-kit/o11y/internal/metric"
@@ -40,6 +41,8 @@ func Start(ctx context.Context) error {
 		return errors.New("otel already started")
 	}
 
+	global.Load()
+
 	cfg := pLog.HandlerConfig{}
 
 	if err := log.Start(ctx, cfg.Core(), cfg.AttrResolver()); err != nil {
@@ -56,6 +59,11 @@ func Start(ctx context.Context) error {
 	}
 	if err := profile.Start(ctx); err != nil {
 		slog.Default().Error("could not start profile component", "error", err)
+		return err
+	}
+
+	if err := errortracking.Start(); err != nil {
+		slog.Default().Error("could not start error tracking component", "error", err)
 		return err
 	}
 
@@ -78,6 +86,9 @@ func Shutdown(ctx context.Context) error {
 
 	errs := []error{}
 
+	if err := errortracking.Shutdown(ctx); err != nil {
+		errs = append(errs, err)
+	}
 	if err := log.Shutdown(ctx); err != nil {
 		errs = append(errs, err)
 	}
