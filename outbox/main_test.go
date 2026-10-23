@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	goleak.VerifyTestMain(m,
-		// The Redpanda container and Docker client live for the whole run, and sarama starts one metrics ticker per process.
+		// testcontainers keeps its Docker connections and reaper for the run, and sarama starts a process-wide metrics ticker.
 		goleak.IgnoreAnyFunction("net/http.(*persistConn).readLoop"),
 		goleak.IgnoreAnyFunction("net/http.(*persistConn).writeLoop"),
 		goleak.IgnoreTopFunction("github.com/rcrowley/go-metrics.(*meterArbiter).tick"),
@@ -61,7 +61,6 @@ func newPool(t *testing.T) *pgxpool.Pool {
 	return testdb.New(t, migrations)
 }
 
-// newOutbox creates the tables of an outbox with a name of its own, so the test's metrics and Janitor are its alone.
 func newOutbox(t *testing.T, pool *pgxpool.Pool) outbox.Outbox {
 	t.Helper()
 
@@ -78,7 +77,6 @@ func newOutbox(t *testing.T, pool *pgxpool.Pool) outbox.Outbox {
 	return outbox.MustNew(name)
 }
 
-// withoutTables names an outbox no test created tables for, so its metrics start from zero.
 func withoutTables() outbox.Outbox {
 	suffix := make([]byte, 4)
 	_, _ = rand.Read(suffix)

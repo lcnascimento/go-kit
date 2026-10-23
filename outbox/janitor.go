@@ -16,7 +16,6 @@ const (
 	purgeBatchSize = 10_000
 )
 
-// runningJanitors holds the outboxes with a running Janitor, since a second one would report the same gauge twice.
 var runningJanitors sync.Map
 
 // Janitor purges forwarded messages older than the retention and reports the age of the oldest pending one.

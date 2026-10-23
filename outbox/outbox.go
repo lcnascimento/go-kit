@@ -38,15 +38,21 @@ import (
 
 const PartitionKeyHeader = "ce_partitionkey"
 
-// validName keeps "watermill_offsets_<name>_outbox" within Postgres' 63-byte identifiers, which it truncates silently.
-var validName = regexp.MustCompile(`^[a-z][a-z0-9_]{0,37}$`)
+const (
+	postgresIdentifierMaxBytes = 63
+	offsetsTablePrefix         = "watermill_offsets_"
+	forwarderTopicSuffix       = "_outbox"
+	maxNameLength              = postgresIdentifierMaxBytes - len(offsetsTablePrefix) - len(forwarderTopicSuffix)
+)
+
+var validName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 type Outbox struct {
 	name string
 }
 
 func New(name string) (Outbox, error) {
-	if !validName.MatchString(name) {
+	if len(name) > maxNameLength || !validName.MatchString(name) {
 		return Outbox{}, ErrInvalidName.WithAttribute("name", name)
 	}
 
@@ -93,8 +99,6 @@ func (o Outbox) Publish(ctx context.Context, tx pgx.Tx, topic string, messages .
 	return nil
 }
 
-// newSubscriber relies on watermill-sql locking the group's offset row in each transaction, so only one replica
-// consumes and commit order holds.
 func (o Outbox) newSubscriber(pool *pgxpool.Pool) (message.Subscriber, error) {
 	// watermill-sql redelivers a message whose ack deadline passes while its handler may still be publishing it.
 	noAckDeadline := time.Duration(0)
@@ -135,7 +139,7 @@ func (o Outbox) oldestPendingAgeQuery() (query string, args []any) {
 }
 
 func (o Outbox) forwarderTopic() string {
-	return o.name + "_outbox"
+	return o.name + forwarderTopicSuffix
 }
 
 func (o Outbox) consumerGroup() string {
@@ -147,5 +151,5 @@ func (o Outbox) messagesTable() string {
 }
 
 func (o Outbox) offsetsTable() string {
-	return pgx.Identifier{"watermill_offsets_" + o.forwarderTopic()}.Sanitize()
+	return pgx.Identifier{offsetsTablePrefix + o.forwarderTopic()}.Sanitize()
 }

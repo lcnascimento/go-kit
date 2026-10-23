@@ -12,7 +12,6 @@ const (
 	pingTimeout    = time.Second
 )
 
-// cluster is the forwarder's one metadata connection: it checks the topics at start and answers readiness.
 type cluster struct {
 	client sarama.Client
 	admin  sarama.ClusterAdmin
@@ -28,7 +27,7 @@ func dialCluster(ctx context.Context, target KafkaTarget) (*cluster, error) {
 	cfg.Metadata.Timeout = pingTimeout
 	cfg.Metadata.AllowAutoTopicCreation = false
 
-	client, err := withContext(ctx, func() (sarama.Client, error) { return sarama.NewClient(target.Brokers, cfg) },
+	client, err := callWithin(ctx, func() (sarama.Client, error) { return sarama.NewClient(target.Brokers, cfg) },
 		func(c sarama.Client) { _ = c.Close() })
 	if err != nil {
 		return nil, ErrKafkaUnavailable.WithCause(err)
@@ -45,7 +44,7 @@ func dialCluster(ctx context.Context, target KafkaTarget) (*cluster, error) {
 }
 
 func (c *cluster) checkTopics(ctx context.Context) error {
-	existing, err := withContext(ctx, c.admin.ListTopics, nil)
+	existing, err := callWithin(ctx, c.admin.ListTopics, nil)
 	if err != nil {
 		return ErrKafkaUnavailable.WithCause(err)
 	}
@@ -59,14 +58,13 @@ func (c *cluster) checkTopics(ctx context.Context) error {
 	return nil
 }
 
-// Ping asks only for the metadata of the forwarder's topics, since a leaderless partition elsewhere
-// (__consumer_offsets while the broker starts) does not stop it.
 func (c *cluster) Ping(ctx context.Context) error {
 	// A port that accepts but never answers stalls sarama for one read timeout per request of the handshake.
 	ctx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
-	_, err := withContext(ctx, func() (struct{}, error) { return struct{}{}, c.client.RefreshMetadata(c.topics...) }, nil)
+	// sarama fails a full metadata refresh on any leaderless partition, such as __consumer_offsets while the broker starts.
+	_, err := callWithin(ctx, func() (struct{}, error) { return struct{}{}, c.client.RefreshMetadata(c.topics...) }, nil)
 	if err != nil {
 		return ErrKafkaUnavailable.WithCause(err)
 	}
@@ -74,13 +72,11 @@ func (c *cluster) Ping(ctx context.Context) error {
 	return nil
 }
 
-// Close closes the admin, which closes the client it was made from.
 func (c *cluster) Close() error {
 	return c.admin.Close()
 }
 
-// withContext bounds a blocking sarama call by ctx and connectTimeout; release frees a result that arrives too late.
-func withContext[T any](ctx context.Context, call func() (T, error), release func(T)) (T, error) {
+func callWithin[T any](ctx context.Context, call func() (T, error), releaseLate func(T)) (T, error) {
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
@@ -101,8 +97,8 @@ func withContext[T any](ctx context.Context, call func() (T, error), release fun
 		return r.value, r.err
 	case <-ctx.Done():
 		go func() {
-			if r := <-done; r.err == nil && release != nil {
-				release(r.value)
+			if r := <-done; r.err == nil && releaseLate != nil {
+				releaseLate(r.value)
 			}
 		}()
 

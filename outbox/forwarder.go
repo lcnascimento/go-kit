@@ -23,13 +23,13 @@ const (
 	retryMultiplier      = 2
 )
 
-// KafkaTarget is where a Forwarder sends: the brokers, and every topic the outbox's messages go to.
+// KafkaTarget names the brokers and every topic the outbox's messages go to.
 type KafkaTarget struct {
 	Brokers []string
 	Topics  []string
 }
 
-// Forwarder sends the outbox messages to Kafka in commit order, keyed by PartitionKeyHeader, with idempotent writes.
+// Forwarder sends the outbox messages to Kafka in commit order, keyed by their PartitionKeyHeader value.
 type Forwarder struct {
 	outbox    Outbox
 	target    KafkaTarget
@@ -122,7 +122,7 @@ func newRouter(o Outbox, subscriber message.Subscriber, publisher message.Publis
 	return router, nil
 }
 
-// Start fails, releasing everything, unless the forwarder is running within ctx and startTimeout.
+// Start returns once the forwarder runs; when it fails it releases everything, and a Forwarder starts only once.
 func (f *Forwarder) Start(ctx context.Context) error {
 	if err := f.lifecycle.start(); err != nil {
 		return err
@@ -170,7 +170,7 @@ func (f *Forwarder) failStart(ctx context.Context, cause error) error {
 	return err
 }
 
-// Stop closes the router and the Kafka clients; it returns when ctx expires, and a later Stop waits for the rest.
+// Stop returns when ctx expires even if closing goes on; a later Stop waits for it to finish.
 func (f *Forwarder) Stop(ctx context.Context) error {
 	if previous := f.lifecycle.stop(); previous != stopped {
 		go f.release(previous == running)
@@ -221,7 +221,6 @@ func (f *Forwarder) closeClients() error {
 	return clusterErr
 }
 
-// newKafkaPublisher opens the connection that sends; watermill-kafka dials its own producer and cannot share cluster's.
 func newKafkaPublisher(ctx context.Context, brokers []string) (*kafka.Publisher, error) {
 	cfg := kafka.DefaultSaramaSyncPublisherConfig()
 	cfg.Producer.Idempotent = true
@@ -229,7 +228,7 @@ func newKafkaPublisher(ctx context.Context, brokers []string) (*kafka.Publisher,
 	cfg.Net.MaxOpenRequests = 1
 	cfg.Net.DialTimeout = connectTimeout
 
-	publisher, err := withContext(ctx, func() (*kafka.Publisher, error) {
+	publisher, err := callWithin(ctx, func() (*kafka.Publisher, error) {
 		return kafka.NewPublisher(kafka.PublisherConfig{
 			Brokers:               brokers,
 			Marshaler:             kafka.NewWithPartitioningMarshaler(partitionKey),

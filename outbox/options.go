@@ -24,15 +24,14 @@ func WithPurgeInterval(interval time.Duration) JanitorOption {
 
 type ForwarderOption func(*Forwarder)
 
-// WithShutdown sets shutdown, called when the forwarder stops without Stop being called.
+// WithShutdown sets the function called when the forwarder stops without Stop.
 func WithShutdown(shutdown func()) ForwarderOption {
 	return func(f *Forwarder) {
 		f.shutdown = shutdown
 	}
 }
 
-// WithValidation makes the forwarder send only messages validate accepts; it retries a rejected one, as it does a
-// failed send, so a malformed message holds back the ones after it instead of reaching Kafka.
+// WithValidation retries a message validate rejects, as it does a failed send, so it holds back the messages after it.
 func WithValidation(validate func(*message.Message) error) ForwarderOption {
 	return func(f *Forwarder) {
 		f.validate = validate

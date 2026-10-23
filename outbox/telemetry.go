@@ -48,9 +48,6 @@ type janitorTelemetry struct {
 	oldestPendingAge otelmetric.Int64ObservableGauge
 }
 
-// Exception to package-level instruments named <resource>.<event>: the Janitor's are per outbox and named
-// <name>.outbox.*, because the boilerplate's alerts, SLOs and dashboards query <service>_outbox_* per service
-// (OutboxAgeAbsent among them) and must keep working for the services already on it.
 func newJanitorTelemetry(name string) (janitorTelemetry, error) {
 	purgedMessages, err := meter.Int64Counter(name+".outbox.purged.messages",
 		otelmetric.WithDescription("Number of forwarded messages deleted from the outbox"))
