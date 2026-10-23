@@ -176,7 +176,7 @@ func recordOnSpan(ctx context.Context, err error) {
 func errorAttr(err error) Attr {
 	attrs := []any{
 		String("message", err.Error()),
-		String("kind", string(errors.Code(err))),
+		String("kind", string(errors.Kind(err))),
 		String("avn_code", string(errors.Code(err))),
 		String("avn_kind", string(errors.Kind(err))),
 		String("severity", errors.Severity(err).String()),

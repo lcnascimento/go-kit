@@ -1,7 +1,9 @@
 package log_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"testing"
@@ -64,4 +66,19 @@ func TestLogger_WarnSeverityLeavesTheSpanStatusUnset(t *testing.T) {
 	ended := recorder.Ended()[0]
 	require.Equal(t, codes.Unset, ended.Status().Code)
 	require.Empty(t, ended.Events())
+}
+
+func TestLogger_ErrorRecordsTheKindUnderTheKindKey(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	logger := log.MustNewLogger("test", log.WithLogHandler(slog.NewJSONHandler(&out, nil)))
+
+	logger.Error(t.Context(), errors.New("boom").WithKind(errors.KindInternal).WithCode("SAVE_NOTE"))
+
+	var record struct {
+		Error map[string]any `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &record))
+	require.Equal(t, "INTERNAL", record.Error["kind"])
 }
