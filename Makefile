@@ -62,5 +62,5 @@ test.unit:
 .PHONY: test.component
 test.component:
 	@echo "===> Running Component Tests"
-	@go test -run Component ./postgres/...
+	@go test -run Component ./postgres/... ./outbox/...
 	@echo "===> Component Tests passed"

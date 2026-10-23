@@ -1,0 +1,382 @@
+package outbox_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+
+	"github.com/lcnascimento/go-kit/outbox"
+)
+
+const (
+	expired = 8 * 24 * time.Hour
+	recent  = 24 * time.Hour
+
+	oldestPendingAge = "test.outbox.oldest_pending.age"
+)
+
+func TestOutbox_NewRejectsANameThatIsNotAnIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"", "Notes", "1notes", "notes-outbox", `notes"; DROP TABLE x; --`} {
+		_, err := outbox.New(name)
+
+		require.ErrorIs(t, err, outbox.ErrInvalidName, name)
+	}
+}
+
+func TestComponentJanitor_PurgeKeepsPendingMessages(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 2, expired)
+	ack(t, pool)
+	seed(t, pool, 3, expired)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Equal(t, int64(2), purged)
+	require.Equal(t, 3, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeKeepsEverythingBeforeTheFirstAck(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 3, expired)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Zero(t, purged)
+	require.Equal(t, 3, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeKeepsSevenDaysByDefault(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 1, 7*24*time.Hour+time.Minute)
+	seed(t, pool, 3, 7*24*time.Hour-time.Minute)
+	ack(t, pool)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), purged)
+	require.Equal(t, 3, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeHonorsTheRetention(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 2, 3*time.Hour)
+	seed(t, pool, 1, time.Hour)
+	ack(t, pool)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool, outbox.WithRetention(2*time.Hour)).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Equal(t, int64(2), purged)
+	require.Equal(t, 1, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeKeepsRecentlyForwardedMessages(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 3, recent)
+	ack(t, pool)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Zero(t, purged)
+	require.Equal(t, 3, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeDeletesExpiredForwardedMessagesAcrossBatches(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 10_001, expired)
+	seed(t, pool, 2, recent)
+	ack(t, pool)
+
+	purged, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+
+	require.NoError(t, err)
+	require.Equal(t, int64(10_001), purged)
+	require.Equal(t, 2, count(t, pool))
+}
+
+func TestComponentJanitor_PurgeFailsWithoutTheOutboxTables(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+
+	_, err := outbox.NewJanitor(outbox.MustNew("missing"), pool).Purge(t.Context())
+
+	require.ErrorIs(t, err, outbox.ErrPurge)
+}
+
+func TestComponentJanitor_OldestPendingAgeIsZeroWithoutMessages(t *testing.T) {
+	t.Parallel()
+
+	age, err := outbox.NewJanitor(testOutbox, newPool(t)).OldestPendingAge(t.Context())
+
+	require.NoError(t, err)
+	require.Zero(t, age)
+}
+
+func TestComponentJanitor_OldestPendingAgeIsZeroWhenEverythingWasForwarded(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 3, time.Hour)
+	ack(t, pool)
+
+	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+
+	require.NoError(t, err)
+	require.Zero(t, age)
+}
+
+func TestComponentJanitor_OldestPendingAgeIgnoresForwardedMessages(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 1, time.Hour)
+	ack(t, pool)
+	seed(t, pool, 1, 10*time.Minute)
+	seed(t, pool, 1, time.Minute)
+
+	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+
+	require.NoError(t, err)
+	require.InDelta(t, (10 * time.Minute).Seconds(), age.Seconds(), 5)
+}
+
+func TestComponentJanitor_OldestPendingAgeCountsEverythingBeforeTheFirstAck(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 1, time.Hour)
+
+	age, err := outbox.NewJanitor(testOutbox, pool).OldestPendingAge(t.Context())
+
+	require.NoError(t, err)
+	require.InDelta(t, time.Hour.Seconds(), age.Seconds(), 5)
+}
+
+func TestComponentJanitor_PurgesOnStart(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	seed(t, pool, 3, expired)
+	ack(t, pool)
+
+	startJanitor(t, outbox.NewJanitor(testOutbox, pool))
+
+	require.Eventually(t, func() bool { return count(t, pool) == 0 }, waitFor, 10*time.Millisecond)
+}
+
+func TestComponentJanitor_KeepsPurgingAfterAFailure(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	late := outbox.MustNew("late")
+
+	startJanitor(t, outbox.NewJanitor(late, pool, outbox.WithPurgeInterval(time.Millisecond)))
+
+	time.Sleep(20 * time.Millisecond)
+
+	_, err := pool.Exec(t.Context(), `
+		CREATE TABLE watermill_late_outbox (
+			"offset" bigint GENERATED BY DEFAULT AS IDENTITY,
+			uuid text NOT NULL,
+			created_at timestamptz NOT NULL DEFAULT now(),
+			payload json,
+			metadata json,
+			transaction_id xid8 NOT NULL,
+			PRIMARY KEY (transaction_id, "offset")
+		);
+		CREATE TABLE watermill_offsets_late_outbox (
+			consumer_group text PRIMARY KEY,
+			offset_acked bigint,
+			last_processed_transaction_id xid8 NOT NULL
+		);
+		INSERT INTO watermill_late_outbox (uuid, created_at, transaction_id)
+		VALUES ('late', now() - interval '8 days', pg_current_xact_id());
+		INSERT INTO watermill_offsets_late_outbox
+		SELECT 'late-forwarder', "offset", transaction_id FROM watermill_late_outbox;`)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		var n int
+		require.NoError(t, pool.QueryRow(t.Context(), `SELECT count(*) FROM watermill_late_outbox`).Scan(&n))
+
+		return n == 0
+	}, waitFor, 10*time.Millisecond)
+}
+
+func TestComponentJanitor_StopsPurging(t *testing.T) {
+	t.Parallel()
+
+	pool := newPool(t)
+	janitor := outbox.NewJanitor(testOutbox, pool, outbox.WithPurgeInterval(time.Millisecond))
+
+	require.NoError(t, janitor.Start(t.Context()))
+	require.NoError(t, janitor.Stop(t.Context()))
+
+	seed(t, pool, 3, expired)
+	ack(t, pool)
+
+	time.Sleep(20 * time.Millisecond)
+
+	require.Equal(t, 3, count(t, pool))
+}
+
+func TestComponentJanitor_ReportsTheOldestPendingAgeUntilStopped(t *testing.T) {
+	pool := newPool(t)
+	seed(t, pool, 1, 90*time.Second)
+
+	janitor := outbox.NewJanitor(testOutbox, pool)
+	require.NoError(t, janitor.Start(t.Context()))
+
+	got, ok := gauge(t, oldestPendingAge)
+	require.True(t, ok)
+	require.InDelta(t, 90, got, 5)
+
+	require.NoError(t, janitor.Stop(t.Context()))
+
+	_, ok = gauge(t, oldestPendingAge)
+	require.False(t, ok)
+}
+
+func TestComponentJanitor_SkipsTheOldestPendingAgeWhenItCannotReadIt(t *testing.T) {
+	pool := newPool(t)
+	_, err := pool.Exec(t.Context(), `DROP TABLE watermill_test_outbox`)
+	require.NoError(t, err)
+
+	startJanitor(t, outbox.NewJanitor(testOutbox, pool))
+
+	_, ok := gauge(t, oldestPendingAge)
+	require.False(t, ok)
+}
+
+func TestComponentJanitor_PurgeCountsRunsByOutcomeAndPurgedMessages(t *testing.T) {
+	pool := newPool(t)
+	seed(t, pool, 4, expired)
+	ack(t, pool)
+
+	before := counters(t)
+
+	_, err := outbox.NewJanitor(testOutbox, pool).Purge(t.Context())
+	require.NoError(t, err)
+
+	_, err = outbox.NewJanitor(outbox.MustNew("missing"), pool).Purge(t.Context())
+	require.Error(t, err)
+
+	after := counters(t)
+
+	require.Equal(t, int64(1), after["test.outbox.purge.runs{outcome=success}"]-before["test.outbox.purge.runs{outcome=success}"])
+	require.Equal(t, int64(4), after["test.outbox.purged.messages"]-before["test.outbox.purged.messages"])
+	require.Equal(t, int64(1), after["missing.outbox.purge.runs{outcome=failure}"]-before["missing.outbox.purge.runs{outcome=failure}"])
+}
+
+func startJanitor(t *testing.T, janitor *outbox.Janitor) {
+	t.Helper()
+
+	require.NoError(t, janitor.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, janitor.Stop(context.Background())) })
+}
+
+func seed(t *testing.T, pool *pgxpool.Pool, n int, age time.Duration) {
+	t.Helper()
+
+	_, err := pool.Exec(t.Context(), `
+		INSERT INTO watermill_test_outbox (uuid, created_at, payload, metadata, transaction_id)
+		SELECT gen_random_uuid()::text, now() - make_interval(secs => $2), '{}', '{}', pg_current_xact_id()
+		FROM generate_series(1, $1)`, n, age.Seconds())
+	require.NoError(t, err)
+}
+
+func ack(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+
+	_, err := pool.Exec(t.Context(), `
+		INSERT INTO watermill_offsets_test_outbox (consumer_group, offset_acked, last_processed_transaction_id)
+		SELECT 'test-forwarder', "offset", transaction_id
+		FROM watermill_test_outbox
+		ORDER BY transaction_id DESC, "offset" DESC
+		LIMIT 1
+		ON CONFLICT (consumer_group) DO UPDATE
+		SET offset_acked = excluded.offset_acked, last_processed_transaction_id = excluded.last_processed_transaction_id`)
+	require.NoError(t, err)
+}
+
+func gauge(t *testing.T, name string) (int64, bool) {
+	t.Helper()
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, metrics.Collect(t.Context(), &collected))
+
+	for _, scope := range collected.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if m.Name != name {
+				continue
+			}
+
+			data, ok := m.Data.(metricdata.Gauge[int64])
+			require.True(t, ok, "%s is a %T", name, m.Data)
+
+			if len(data.DataPoints) == 0 {
+				return 0, false
+			}
+
+			return data.DataPoints[0].Value, true
+		}
+	}
+
+	return 0, false
+}
+
+func counters(t *testing.T) map[string]int64 {
+	t.Helper()
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, metrics.Collect(t.Context(), &collected))
+
+	out := map[string]int64{}
+
+	for _, scope := range collected.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			sum, ok := m.Data.(metricdata.Sum[int64])
+			if !ok {
+				continue
+			}
+
+			for _, point := range sum.DataPoints {
+				out[m.Name+outcomeLabel(point.Attributes)] = point.Value
+			}
+		}
+	}
+
+	return out
+}
+
+func outcomeLabel(set attribute.Set) string {
+	if outcome, ok := set.Value("outcome"); ok {
+		return "{outcome=" + outcome.AsString() + "}"
+	}
+
+	return ""
+}
