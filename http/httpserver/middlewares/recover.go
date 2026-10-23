@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"runtime/debug"
 
@@ -14,11 +15,10 @@ import (
 func Recover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func(ctx context.Context) {
-			if err := recover(); err != nil {
-				logger.CriticalMessage(
+			if cause := recover(); cause != nil {
+				logger.Critical(
 					ctx,
-					"panic recovered",
-					log.Any("exception.message", err),
+					errors.New("%s", fmt.Sprint(cause)).WithCode("PANIC").WithKind(errors.KindCritical),
 					log.String("exception.stack", string(debug.Stack())),
 				)
 
