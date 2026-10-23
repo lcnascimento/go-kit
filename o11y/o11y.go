@@ -11,6 +11,7 @@ import (
 	pLog "github.com/lcnascimento/go-kit/o11y/log"
 
 	"github.com/lcnascimento/go-kit/errors"
+	"github.com/lcnascimento/go-kit/o11y/internal/errortracking"
 	"github.com/lcnascimento/go-kit/o11y/internal/global"
 	"github.com/lcnascimento/go-kit/o11y/internal/log"
 	"github.com/lcnascimento/go-kit/o11y/internal/metric"
@@ -59,6 +60,11 @@ func Start(ctx context.Context) error {
 		return err
 	}
 
+	if err := errortracking.Start(); err != nil {
+		slog.Default().Error("could not start error tracking component", "error", err)
+		return err
+	}
+
 	propagator.Setup()
 
 	slog.Default().Debug("o11y started successfully", "config", global.Config())
@@ -78,6 +84,9 @@ func Shutdown(ctx context.Context) error {
 
 	errs := []error{}
 
+	if err := errortracking.Shutdown(ctx); err != nil {
+		errs = append(errs, err)
+	}
 	if err := log.Shutdown(ctx); err != nil {
 		errs = append(errs, err)
 	}

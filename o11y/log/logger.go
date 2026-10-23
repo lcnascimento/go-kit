@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/lcnascimento/go-kit/errors"
+	"github.com/lcnascimento/go-kit/o11y/internal/errortracking"
 )
 
 // Logger is logging structure with a more rigid interface than slog.
@@ -99,6 +100,7 @@ func (l *implementation) Error(ctx context.Context, err error, attrs ...Attr) {
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelError, err.Error(), attrs...)
@@ -122,6 +124,7 @@ func (l *implementation) Critical(ctx context.Context, err error, attrs ...Attr)
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelCritical, err.Error(), attrs...)
@@ -140,10 +143,12 @@ func (l *implementation) Fatal(ctx context.Context, err error, attrs ...Attr) {
 	}
 
 	recordOnSpan(ctx, err)
+	errortracking.Capture(ctx, err)
 
 	attrs = append(attrs, errorAttr(err))
 	l.logger.LogAttrs(ctx, LevelFatal, err.Error(), attrs...)
 
+	errortracking.Flush(ctx)
 	panic(err.Error())
 }
 
