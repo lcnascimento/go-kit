@@ -42,8 +42,12 @@ func stackTrace(extractor posthog.DefaultStackTraceExtractor) *posthog.Exception
 
 //nolint:gocritic // posthog.InAppDecider takes the frame by value.
 func inApp(frame runtime.Frame) bool {
-	main := mainModule()
 	pkg := packageOf(frame.Function)
+	if pkg == "main" {
+		return true
+	}
+
+	main := mainModule()
 
 	return main != "" && (pkg == main || pkg == main+"_test" || strings.HasPrefix(pkg, main+"/"))
 }

@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -308,4 +310,25 @@ func TestErrorTracking_WithTheSDKDisabledNeverCallsPostHog(t *testing.T) {
 	posthog.mu.Lock()
 	defer posthog.mu.Unlock()
 	require.Zero(t, posthog.requests)
+}
+
+func TestErrorTracking_MarksTheMainPackageFramesAsInApp(t *testing.T) {
+	posthog := startPostHog(t)
+
+	cmd := exec.CommandContext(t.Context(), "go", "run", "./testdata/mainpkg")
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+
+	exceptions := posthog.exceptions(t)
+	require.Len(t, exceptions, 1)
+
+	inApp := map[string]bool{}
+	for _, frame := range exceptions[0]["$exception_list"].([]any)[0].(map[string]any)["stacktrace"].(map[string]any)["frames"].([]any) {
+		frame := frame.(map[string]any)
+		inApp[frame["function"].(string)] = frame["in_app"].(bool)
+	}
+	require.Contains(t, inApp, "main.fail")
+	require.True(t, inApp["main.fail"])
+	require.True(t, inApp["main.main"])
 }
