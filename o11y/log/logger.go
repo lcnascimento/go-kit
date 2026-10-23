@@ -14,6 +14,9 @@ import (
 // Logger is logging structure with a more rigid interface than slog.
 // It forces the use of context and attributes, in a more opinionated style.
 // It's usage is highly recommended due to its facilities on error handling.
+//
+// Error, Critical and Fatal also send errors of kind UNKNOWN, INTERNAL, CRITICAL, SERVICE_UNAVAILABLE and FATAL
+// to PostHog Error Tracking, once o11y.Start found a POSTHOG_PROJECT_KEY.
 type Logger interface {
 	// Debug logs a message at the debug level.
 	Debug(ctx context.Context, msg string, attrs ...Attr)
@@ -46,6 +49,7 @@ type Logger interface {
 	FatalMessage(ctx context.Context, msg string, attrs ...Attr)
 
 	// Fatal logs error data at the custom fatal level, records it on the span in ctx with an Error status, and panics.
+	// It flushes error tracking before panicking, so a recovered Fatal reaches PostHog twice: as itself and as a PANIC.
 	Fatal(ctx context.Context, err error, attrs ...Attr)
 }
 
