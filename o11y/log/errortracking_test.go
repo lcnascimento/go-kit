@@ -275,7 +275,6 @@ func TestErrorTracking_ShutdownStopsWaitingAfterFiveSeconds(t *testing.T) {
 	<-stalled
 }
 
-// startStalledPostHog answers no request until the test ends, and its channel yields once a request arrived.
 func startStalledPostHog(t *testing.T) <-chan struct{} {
 	t.Helper()
 

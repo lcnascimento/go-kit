@@ -45,7 +45,6 @@ func distinctID(bag baggage.Baggage) string {
 	return global.Config().ServiceName
 }
 
-// properties merges, from lowest to highest precedence, the baggage, the error's attributes and the fixed properties.
 func properties(ctx context.Context, bag baggage.Baggage, err error) posthog.Properties {
 	props := posthog.NewProperties()
 

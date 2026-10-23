@@ -21,7 +21,6 @@ var (
 	client atomic.Pointer[posthog.Client]
 )
 
-// Start installs the PostHog client. Without POSTHOG_PROJECT_KEY, or with the SDK disabled, capturing stays a no-op.
 func Start() error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -37,7 +36,7 @@ func Start() error {
 
 	c, err := posthog.NewWithConfig(key, posthog.Config{
 		Endpoint: env.Get[string]("POSTHOG_HOST"),
-		Logger:   warnLogger{},
+		Logger:   warnCappedLogger{},
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create posthog client")
@@ -47,7 +46,6 @@ func Start() error {
 	return nil
 }
 
-// Shutdown flushes and closes the PostHog client, after which capturing is a no-op again.
 func Shutdown(ctx context.Context) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -67,7 +65,6 @@ func Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// Capture sends err to PostHog as an $exception when its Kind is unexpected.
 func Capture(ctx context.Context, err error) {
 	c := client.Load()
 	if c == nil || !captured(errors.Kind(err)) {
@@ -79,7 +76,6 @@ func Capture(ctx context.Context, err error) {
 	}
 }
 
-// Flush waits for the captured exceptions to be sent.
 func Flush(ctx context.Context) {
 	c := client.Load()
 	if c == nil {
